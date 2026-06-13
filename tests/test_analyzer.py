@@ -9,7 +9,7 @@ from analyzer import (
     parse_batch_response,
     analyze_articles_batch,
 )
-from models import RawArticle
+from models import RawArticle, ZennDraft
 
 
 # --- テスト用ヘルパー ---
@@ -182,6 +182,10 @@ def _make_batch_payload(articles: list[RawArticle], reverse: bool = False) -> st
             "zenn_article_structure": f"構成 {i+1}",
             "monetization_idea": f"マネタイズ {i+1}",
             "x_post_draft": f"🚀 draft {i+1} {{URL}}",
+            "zenn_title": f"Zennタイトル {i+1}",
+            "zenn_sections": [f"見出し{j}" for j in range(1, 4)],
+            "zenn_intro": f"導入文 {i+1}",
+            "zenn_tags": ["Python", "AI", "Tech"],
         }
         for i, article in enumerate(articles)
     ]
@@ -193,7 +197,7 @@ def _make_batch_payload(articles: list[RawArticle], reverse: bool = False) -> st
 def test_parse_batch_response_maps_article_id() -> None:
     articles = [_make_article(title="A"), _make_article(title="B")]
     id_to_article = {"art-001": articles[0], "art-002": articles[1]}
-    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    drafts, _ = parse_batch_response(_make_batch_payload(articles), id_to_article)
     assert drafts[0].article_id == articles[0].article_id
     assert drafts[1].article_id == articles[1].article_id
 
@@ -203,7 +207,7 @@ def test_parse_batch_response_sorted_by_rank() -> None:
     articles = [_make_article(title="A"), _make_article(title="B")]
     id_to_article = {"art-001": articles[0], "art-002": articles[1]}
     # reverse=True で rank=2 が先に来る JSON を生成
-    drafts = parse_batch_response(_make_batch_payload(articles, reverse=True), id_to_article)
+    drafts, _ = parse_batch_response(_make_batch_payload(articles, reverse=True), id_to_article)
     assert drafts[0].one_line_summary == "要約 1"   # rank 1 が先頭
     assert drafts[1].one_line_summary == "要約 2"
 
@@ -211,7 +215,7 @@ def test_parse_batch_response_sorted_by_rank() -> None:
 def test_parse_batch_response_all_fields_mapped() -> None:
     articles = [_make_article()]
     id_to_article = {"art-001": articles[0]}
-    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    drafts, _ = parse_batch_response(_make_batch_payload(articles), id_to_article)
     assert drafts[0].one_line_summary == "要約 1"
     assert drafts[0].background_analysis == "背景 1"
     assert drafts[0].zenn_article_structure == "構成 1"
@@ -225,15 +229,38 @@ def test_parse_batch_response_viral_score_range() -> None:
     """viral_score が 1〜5 の範囲で正しくマッピングされることを確認"""
     articles = [_make_article() for _ in range(5)]
     id_to_article = {f"art-{i+1:03d}": a for i, a in enumerate(articles)}
-    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    drafts, _ = parse_batch_response(_make_batch_payload(articles), id_to_article)
     scores = [d.viral_score for d in drafts]
     assert all(1 <= s <= 5 for s in scores)
+
+
+def test_parse_batch_response_zenn_draft_fields() -> None:
+    """ZennDraft が正しくマッピングされることを確認"""
+    articles = [_make_article()]
+    id_to_article = {"art-001": articles[0]}
+    drafts, zenn_drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    assert len(zenn_drafts) == 1
+    zenn = zenn_drafts[0]
+    assert isinstance(zenn, ZennDraft)
+    assert zenn.article_id == articles[0].article_id
+    assert zenn.zenn_title == "Zennタイトル 1"
+    assert zenn.zenn_sections == ["見出し1", "見出し2", "見出し3"]
+    assert zenn.zenn_intro == "導入文 1"
+    assert zenn.zenn_tags == ["Python", "AI", "Tech"]
+
+
+def test_parse_batch_response_zenn_drafts_same_count_as_drafts() -> None:
+    """ZennDraft と ProcessedDraft の件数が一致することを確認"""
+    articles = [_make_article() for _ in range(3)]
+    id_to_article = {f"art-{i+1:03d}": a for i, a in enumerate(articles)}
+    drafts, zenn_drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    assert len(drafts) == len(zenn_drafts) == 3
 
 
 # --- analyze_articles_batch（Gemini クライアントをモック）---
 
 def test_analyze_articles_batch_single_api_call() -> None:
-    """API が1回だけ呼ばれ、ランク順の ProcessedDraft が返ることを確認"""
+    """API が1回だけ呼ばれ、ランク順の ProcessedDraft と ZennDraft が返ることを確認"""
     articles = [
         _make_article(title="Article A", url="https://example.com/a"),
         _make_article(title="Article B", url="https://example.com/b"),
@@ -243,13 +270,15 @@ def test_analyze_articles_batch_single_api_call() -> None:
     mock_client = MagicMock()
     mock_client.models.generate_content.return_value = mock_response
 
-    drafts = analyze_articles_batch(articles, client=mock_client)
+    drafts, zenn_drafts = analyze_articles_batch(articles, client=mock_client)
 
     mock_client.models.generate_content.assert_called_once()
     assert len(drafts) == 2
+    assert len(zenn_drafts) == 2
     assert drafts[0].article_id == articles[0].article_id
     assert drafts[0].one_line_summary == "要約 1"
     assert drafts[1].article_id == articles[1].article_id
+    assert zenn_drafts[0].zenn_title == "Zennタイトル 1"
 
 
 def test_analyze_articles_batch_passes_user_status() -> None:

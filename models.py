@@ -23,6 +23,17 @@ class RawArticle(BaseModel):
     # default_factory を安全な関数に変更
     collected_at: str = Field(default_factory=get_utc_now_iso, description="収集日時")
 
+class ZennDraft(BaseModel):
+    """Zenn 記事構成案エンティティ（バッチ分析で生成）"""
+    zenn_draft_id: str = Field(default_factory=generate_uuid, description="UUID v4")
+    article_id: str = Field(..., description="紐づくRawArticleのarticle_id")
+    zenn_title: str = Field(..., description="Zenn向け日本語タイトル")
+    zenn_sections: list[str] = Field(..., description="H2見出し候補 3〜5個")
+    zenn_intro: str = Field(..., description="導入文 200字程度")
+    zenn_tags: list[str] = Field(..., description="Zennのタグ候補 3個")
+    created_at: str = Field(default_factory=get_utc_now_iso, description="生成日時")
+
+
 class ProcessedDraft(BaseModel):
     """
     【変更不可】AIが処理した後の下書き・考察エンティティ

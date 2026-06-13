@@ -7,7 +7,7 @@ from fetcher import (
     fetch_reddit_articles,
 )
 from analyzer import analyze_articles_batch, _build_client
-from models import RawArticle, ProcessedDraft
+from models import RawArticle, ProcessedDraft, ZennDraft
 
 FETCH_LIMIT = 3
 OUTPUTS_DIR = pathlib.Path("outputs")
@@ -24,6 +24,7 @@ def load_user_status() -> str:
 def save_markdown_report(
     articles: list[RawArticle],
     drafts: list[ProcessedDraft],
+    zenn_drafts: list[ZennDraft],
     user_status: str,
 ) -> str:
     """分析結果を outputs/YYYY-MM-DD_trends.md として保存し、パスを返す"""
@@ -36,9 +37,11 @@ def save_markdown_report(
     if user_status:
         lines += ["## ユーザーステータス", "", user_status, "", "---", ""]
 
-    for i, (article, draft) in enumerate(zip(articles, drafts), 1):
+    for i, (article, draft, zenn) in enumerate(zip(articles, drafts, zenn_drafts), 1):
         stars = "⭐" * draft.viral_score if draft.viral_score > 0 else "—"
         display_title = draft.improved_title if draft.improved_title else article.title
+        section_list = "\n".join(f"- {s}" for s in zenn.zenn_sections)
+        tag_list = " / ".join(f"`{t}`" for t in zenn.zenn_tags)
         lines += [
             f"## 第 {i} 位 — [{article.source_name}] {display_title}",
             "",
@@ -54,9 +57,19 @@ def save_markdown_report(
             "",
             draft.background_analysis,
             "",
-            "### Zenn 記事構成案",
+            "### 📝 Zenn構成案",
             "",
-            draft.zenn_article_structure,
+            f"**タイトル:** {zenn.zenn_title}",
+            "",
+            "**見出し構成:**",
+            "",
+            section_list,
+            "",
+            "**導入文:**",
+            "",
+            zenn.zenn_intro,
+            "",
+            f"**タグ:** {tag_list}",
             "",
             "### マネタイズアイデア",
             "",
@@ -107,7 +120,7 @@ def main() -> None:
 
     print("\n[分析] Gemini 2.5 Flash Lite で一括バッチ分析中（1回のAPIコール）...")
     client = _build_client()
-    drafts = analyze_articles_batch(all_articles, client=client, user_status=user_status)
+    drafts, zenn_drafts = analyze_articles_batch(all_articles, client=client, user_status=user_status)
     print(f"      {len(drafts)} 件の分析完了（関心度順にソート済み）\n")
 
     # drafts はランク順。対応する RawArticle を article_id で引く
@@ -136,7 +149,7 @@ def main() -> None:
         print("-" * 60)
 
     ranked_articles = [article_by_id[d.article_id] for d in drafts]
-    saved_path = save_markdown_report(ranked_articles, drafts, user_status)
+    saved_path = save_markdown_report(ranked_articles, drafts, zenn_drafts, user_status)
     print(f"\n[保存完了] {saved_path}")
 
 

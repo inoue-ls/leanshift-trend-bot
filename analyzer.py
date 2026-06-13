@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from models import RawArticle, ProcessedDraft
+from models import RawArticle, ProcessedDraft, ZennDraft
 
 
 # ---------------------------------------------------------------------------
@@ -25,6 +25,10 @@ class _RankedArticleJSON(BaseModel):
     zenn_article_structure: str
     monetization_idea: str
     x_post_draft: str
+    zenn_title: str
+    zenn_sections: list[str]
+    zenn_intro: str
+    zenn_tags: list[str]
 
 
 class _BatchAnalysisResponse(BaseModel):
@@ -181,7 +185,12 @@ _BATCH_SYSTEM_PROMPT = (
     "- 権威の法則: 著名ブランド・巨額調達で市場性を印象付ける\n"
     "- 探究の法則: 「なぜ〇〇なのか？」で知的好奇心を刺激する\n\n"
     "# 5. x_post_draft のルール\n"
-    "絵文字1個＋改行＋本文1〜2文＋末尾に {URL} プレースホルダー。URL を除いて 100〜130 文字。ハッシュタグ不要。\n"
+    "絵文字1個＋改行＋本文1〜2文＋末尾に {URL} プレースホルダー。URL を除いて 100〜130 文字。ハッシュタグ不要。\n\n"
+    "# 6. Zenn 記事構成案 (zenn_title / zenn_sections / zenn_intro / zenn_tags)\n"
+    "- zenn_title: Zenn 向け日本語タイトル（40文字程度、技術者の好奇心を刺激する表現）\n"
+    "- zenn_sections: H2 見出し候補を 3〜5 個の文字列リストで出力（例: [\"背景と課題\", \"技術詳細\", \"実装手順\", \"まとめ\"]）\n"
+    "- zenn_intro: 記事の冒頭に置く導入文（200字程度）。読者を引き込み、記事を読む動機を与える内容にする\n"
+    "- zenn_tags: Zenn のタグ候補を正確に 3 個の文字列リストで出力（例: [\"Next.js\", \"TypeScript\", \"React\"]）\n"
 )
 
 
@@ -214,12 +223,13 @@ def _build_id_map(articles: list[RawArticle]) -> dict[str, RawArticle]:
 def parse_batch_response(
     raw_text: str,
     id_to_article: dict[str, RawArticle],
-) -> list[ProcessedDraft]:
-    """Gemini バッチレスポンスを rank 昇順の ProcessedDraft リストに変換する（テスト対象）"""
+) -> tuple[list[ProcessedDraft], list[ZennDraft]]:
+    """Gemini バッチレスポンスを rank 昇順の (ProcessedDraft, ZennDraft) タプルに変換する（テスト対象）"""
     clean = _strip_markdown_fences(raw_text)
     batch = _BatchAnalysisResponse.model_validate_json(clean)
 
     drafts: list[ProcessedDraft] = []
+    zenn_drafts: list[ZennDraft] = []
     for item in sorted(batch.ranked_articles, key=lambda x: x.rank):
         article = id_to_article[item.article_id]
         drafts.append(
@@ -234,15 +244,24 @@ def parse_batch_response(
                 improved_title=item.improved_title,
             )
         )
-    return drafts
+        zenn_drafts.append(
+            ZennDraft(
+                article_id=article.article_id,
+                zenn_title=item.zenn_title,
+                zenn_sections=item.zenn_sections,
+                zenn_intro=item.zenn_intro,
+                zenn_tags=item.zenn_tags,
+            )
+        )
+    return drafts, zenn_drafts
 
 
 def analyze_articles_batch(
     articles: list[RawArticle],
     client: genai.Client | None = None,
     user_status: str = "",
-) -> list[ProcessedDraft]:
-    """全記事を1回の Gemini APIコールで一括分析し、関心度順の ProcessedDraft リストを返す"""
+) -> tuple[list[ProcessedDraft], list[ZennDraft]]:
+    """全記事を1回の Gemini APIコールで一括分析し、関心度順の (ProcessedDraft, ZennDraft) タプルを返す"""
     if client is None:
         client = _build_client()
 
