@@ -1,6 +1,14 @@
 import json
 import pytest
-from analyzer import parse_ai_response, _strip_markdown_fences, _build_user_content
+from unittest.mock import MagicMock
+from analyzer import (
+    parse_ai_response,
+    _strip_markdown_fences,
+    _build_user_content,
+    _build_batch_user_content,
+    parse_batch_response,
+    analyze_articles_batch,
+)
 from models import RawArticle
 
 
@@ -113,3 +121,135 @@ def test_build_user_content_contains_article_fields() -> None:
     assert "Title: My Article" in result
     assert "URL: https://example.com/a" in result
     assert "Summary:\nA summary." in result
+
+
+# --- _build_batch_user_content ---
+
+def test_build_batch_user_content_xml_structure() -> None:
+    articles = [
+        _make_article(title="Article 1", url="https://a.com"),
+        _make_article(title="Article 2", url="https://b.com"),
+    ]
+    result = _build_batch_user_content(articles, "")
+    assert "<articles>" in result
+    assert 'id="art-001"' in result
+    assert 'id="art-002"' in result
+    assert "<title>Article 1</title>" in result
+    assert "<title>Article 2</title>" in result
+    assert "<url>https://a.com</url>" in result
+
+
+def test_build_batch_user_content_with_status_before_articles() -> None:
+    articles = [_make_article()]
+    result = _build_batch_user_content(articles, "Next.js")
+    assert "<user_interests>" in result
+    assert result.index("<user_interests>") < result.index("<articles>")
+
+
+def test_build_batch_user_content_no_status_omits_tag() -> None:
+    articles = [_make_article()]
+    result = _build_batch_user_content(articles, "")
+    assert "<user_interests>" not in result
+    assert "<articles>" in result
+
+
+def test_build_batch_user_content_article_fields_in_xml() -> None:
+    article = _make_article(
+        source_name="Hacker News",
+        title="My Title",
+        url="https://example.com/x",
+        summary="A test summary.",
+    )
+    result = _build_batch_user_content([article], "")
+    assert "<source>Hacker News</source>" in result
+    assert "<summary>A test summary.</summary>" in result
+
+
+# --- parse_batch_response ---
+
+def _make_batch_payload(articles: list[RawArticle], reverse: bool = False) -> str:
+    """テスト用バッチレスポンス JSON を生成する（reverse=True で rank が逆順に並ぶ）"""
+    items = [
+        {
+            "rank": i + 1,
+            "article_id": f"art-{i+1:03d}",
+            "title": article.title,
+            "evaluation_reason": f"reason {i+1}",
+            "one_line_summary": f"要約 {i+1}",
+            "background_analysis": f"背景 {i+1}",
+            "zenn_article_structure": f"構成 {i+1}",
+            "monetization_idea": f"マネタイズ {i+1}",
+            "x_post_draft": f"🚀 draft {i+1} {{URL}}",
+        }
+        for i, article in enumerate(articles)
+    ]
+    if reverse:
+        items = list(reversed(items))
+    return json.dumps({"ranked_articles": items})
+
+
+def test_parse_batch_response_maps_article_id() -> None:
+    articles = [_make_article(title="A"), _make_article(title="B")]
+    id_to_article = {"art-001": articles[0], "art-002": articles[1]}
+    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    assert drafts[0].article_id == articles[0].article_id
+    assert drafts[1].article_id == articles[1].article_id
+
+
+def test_parse_batch_response_sorted_by_rank() -> None:
+    """Gemini がランク逆順で返してきても正しく昇順ソートされることを確認"""
+    articles = [_make_article(title="A"), _make_article(title="B")]
+    id_to_article = {"art-001": articles[0], "art-002": articles[1]}
+    # reverse=True で rank=2 が先に来る JSON を生成
+    drafts = parse_batch_response(_make_batch_payload(articles, reverse=True), id_to_article)
+    assert drafts[0].one_line_summary == "要約 1"   # rank 1 が先頭
+    assert drafts[1].one_line_summary == "要約 2"
+
+
+def test_parse_batch_response_all_fields_mapped() -> None:
+    articles = [_make_article()]
+    id_to_article = {"art-001": articles[0]}
+    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    assert drafts[0].one_line_summary == "要約 1"
+    assert drafts[0].background_analysis == "背景 1"
+    assert drafts[0].zenn_article_structure == "構成 1"
+    assert drafts[0].monetization_idea == "マネタイズ 1"
+    assert "{URL}" in drafts[0].x_post_draft
+
+
+# --- analyze_articles_batch（Gemini クライアントをモック）---
+
+def test_analyze_articles_batch_single_api_call() -> None:
+    """API が1回だけ呼ばれ、ランク順の ProcessedDraft が返ることを確認"""
+    articles = [
+        _make_article(title="Article A", url="https://example.com/a"),
+        _make_article(title="Article B", url="https://example.com/b"),
+    ]
+    mock_response = MagicMock()
+    mock_response.text = _make_batch_payload(articles)
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    drafts = analyze_articles_batch(articles, client=mock_client)
+
+    mock_client.models.generate_content.assert_called_once()
+    assert len(drafts) == 2
+    assert drafts[0].article_id == articles[0].article_id
+    assert drafts[0].one_line_summary == "要約 1"
+    assert drafts[1].article_id == articles[1].article_id
+
+
+def test_analyze_articles_batch_passes_user_status() -> None:
+    """user_status が user_content に渡されることを確認（プロンプト内容を検査）"""
+    articles = [_make_article()]
+    mock_response = MagicMock()
+    mock_response.text = _make_batch_payload(articles)
+    mock_client = MagicMock()
+    mock_client.models.generate_content.return_value = mock_response
+
+    analyze_articles_batch(articles, client=mock_client, user_status="Next.js, 音楽生成AI")
+
+    call_kwargs = mock_client.models.generate_content.call_args
+    contents_arg: str = call_kwargs.kwargs.get("contents") or call_kwargs.args[1]
+    assert "Next.js, 音楽生成AI" in contents_arg
+    assert "<user_interests>" in contents_arg

@@ -6,7 +6,7 @@ from fetcher import (
     fetch_techcrunch_articles,
     fetch_reddit_articles,
 )
-from analyzer import analyze_articles, _build_client
+from analyzer import analyze_articles_batch, _build_client
 from models import RawArticle, ProcessedDraft
 
 FETCH_LIMIT = 3
@@ -101,16 +101,20 @@ def main() -> None:
     all_articles = hn_articles + ph_articles + tc_articles + reddit_articles
     print(f"\n合計 {len(all_articles)} 件のデータ取得完了")
 
-    print("\n[分析] Gemini 2.5 Flash Lite で分析中...")
+    print("\n[分析] Gemini 2.5 Flash Lite で一括バッチ分析中（1回のAPIコール）...")
     client = _build_client()
-    drafts = analyze_articles(all_articles, client=client, user_status=user_status)
-    print(f"      {len(drafts)} 件の分析完了\n")
+    drafts = analyze_articles_batch(all_articles, client=client, user_status=user_status)
+    print(f"      {len(drafts)} 件の分析完了（関心度順にソート済み）\n")
 
-    print("[結果] 分析結果を表示します")
+    # drafts はランク順。対応する RawArticle を article_id で引く
+    article_by_id = {a.article_id: a for a in all_articles}
+
+    print("[結果] 分析結果を表示します（関心度順）")
     print("=" * 60)
 
-    for i, (article, draft) in enumerate(zip(all_articles, drafts), 1):
-        print(f"\n【記事 {i}】[{article.source_name}] {article.title}")
+    for i, draft in enumerate(drafts, 1):
+        article = article_by_id[draft.article_id]
+        print(f"\n【第 {i} 位】[{article.source_name}] {article.title}")
         print(f"  URL: {article.url}")
         print()
         print(f"  ▶ 一言要約\n    {draft.one_line_summary}")
@@ -124,7 +128,8 @@ def main() -> None:
         print(f"  ▶ X投稿下書き\n    {draft.x_post_draft.replace('{URL}', article.url)}")
         print("-" * 60)
 
-    saved_path = save_markdown_report(all_articles, drafts, user_status)
+    ranked_articles = [article_by_id[d.article_id] for d in drafts]
+    saved_path = save_markdown_report(ranked_articles, drafts, user_status)
     print(f"\n[保存完了] {saved_path}")
 
 
