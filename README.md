@@ -109,6 +109,37 @@ ProcessedDraft（AI 処理済み）
 
 `models.py` はすべてのデータソース（音楽・投資・X 等）が増えても変更しないマスター定義です。
 
+## 自動実行（毎朝 7 時 cron）
+
+`scripts/run_daily.sh` がプロジェクトルートへ `cd` し、`.env` を読み込んで `python3 main.py` を実行します。  
+ログは `logs/YYYY-MM-DD.log` に追記されます。
+
+### 1. スクリプトに実行権限を付与
+
+```bash
+chmod +x scripts/run_daily.sh
+```
+
+### 2. crontab に登録
+
+```bash
+crontab -e
+```
+
+エディタが開いたら以下の 1 行を追加して保存します（パスは環境に合わせて変更）。
+
+```
+0 7 * * * /home/saishin/gtd/03_projects/leanshift-trend-bot/scripts/run_daily.sh
+```
+
+### 3. ログの確認
+
+```bash
+cat logs/$(date +%Y-%m-%d).log
+```
+
+---
+
 ## 開発
 
 ```bash
