@@ -246,11 +246,10 @@ def parse_batch_response(
         )
         zenn_drafts.append(
             ZennDraft(
-                article_id=article.article_id,
-                zenn_title=item.zenn_title,
-                zenn_sections=item.zenn_sections,
-                zenn_intro=item.zenn_intro,
-                zenn_tags=item.zenn_tags,
+                title=item.zenn_title,
+                sections=item.zenn_sections,
+                intro=item.zenn_intro,
+                tags=item.zenn_tags,
             )
         )
     return drafts, zenn_drafts

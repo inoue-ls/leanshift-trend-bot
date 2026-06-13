@@ -40,8 +40,8 @@ def save_markdown_report(
     for i, (article, draft, zenn) in enumerate(zip(articles, drafts, zenn_drafts), 1):
         stars = "⭐" * draft.viral_score if draft.viral_score > 0 else "—"
         display_title = draft.improved_title if draft.improved_title else article.title
-        section_list = "\n".join(f"- {s}" for s in zenn.zenn_sections)
-        tag_list = " / ".join(f"`{t}`" for t in zenn.zenn_tags)
+        section_list = "\n".join(f"- {s}" for s in zenn.sections)
+        tag_list = " / ".join(f"`{t}`" for t in zenn.tags)
         lines += [
             f"## 第 {i} 位 — [{article.source_name}] {display_title}",
             "",
@@ -59,7 +59,7 @@ def save_markdown_report(
             "",
             "### 📝 Zenn構成案",
             "",
-            f"**タイトル:** {zenn.zenn_title}",
+            f"**タイトル:** {zenn.title}",
             "",
             "**見出し構成:**",
             "",
@@ -67,7 +67,7 @@ def save_markdown_report(
             "",
             "**導入文:**",
             "",
-            zenn.zenn_intro,
+            zenn.intro,
             "",
             f"**タグ:** {tag_list}",
             "",

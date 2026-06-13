@@ -242,11 +242,10 @@ def test_parse_batch_response_zenn_draft_fields() -> None:
     assert len(zenn_drafts) == 1
     zenn = zenn_drafts[0]
     assert isinstance(zenn, ZennDraft)
-    assert zenn.article_id == articles[0].article_id
-    assert zenn.zenn_title == "Zennタイトル 1"
-    assert zenn.zenn_sections == ["見出し1", "見出し2", "見出し3"]
-    assert zenn.zenn_intro == "導入文 1"
-    assert zenn.zenn_tags == ["Python", "AI", "Tech"]
+    assert zenn.title == "Zennタイトル 1"
+    assert zenn.sections == ["見出し1", "見出し2", "見出し3"]
+    assert zenn.intro == "導入文 1"
+    assert zenn.tags == ["Python", "AI", "Tech"]
 
 
 def test_parse_batch_response_zenn_drafts_same_count_as_drafts() -> None:
@@ -278,7 +277,7 @@ def test_analyze_articles_batch_single_api_call() -> None:
     assert drafts[0].article_id == articles[0].article_id
     assert drafts[0].one_line_summary == "要約 1"
     assert drafts[1].article_id == articles[1].article_id
-    assert zenn_drafts[0].zenn_title == "Zennタイトル 1"
+    assert zenn_drafts[0].title == "Zennタイトル 1"
 
 
 def test_analyze_articles_batch_passes_user_status() -> None:
