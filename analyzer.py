@@ -13,6 +13,8 @@ MODEL = "models/gemini-2.5-flash-lite"
 _SYSTEM_PROMPT = (
     "あなたは海外テックトレンドを分析する専門家です。\n"
     "与えられた英語記事を分析し、日本のビジネスパーソン向けに以下のJSON形式で回答してください。\n\n"
+    "ユーザーの関心事項が `<user_interests>` タグで提供される場合は、"
+    "その内容を分析・提案の切り口や優先度に積極的に反映してください。\n\n"
     "出力は必ず以下のキーを持つ有効なJSONオブジェクトのみとしてください"
     "（説明文・コードブロック記号は不要です）。\n"
     "すべての値は必ずフラットな文字列（string）にしてください。ネストされたオブジェクトや配列は使わないでください。\n"
@@ -20,7 +22,10 @@ _SYSTEM_PROMPT = (
     '  "one_line_summary": "何の本質を解決するものか（日本語1文）",\n'
     '  "background_analysis": "なぜ海外で流行しているかの背景（日本語、3〜5文）",\n'
     '  "zenn_article_structure": "Zenn記事のタイトル案と見出し構成を改行区切りで記述した文字列（日本語）",\n'
-    '  "monetization_idea": "日本市場向けローカライズビジネスモデル（日本語）"\n'
+    '  "monetization_idea": "日本市場向けローカライズビジネスモデル（日本語）",\n'
+    '  "x_post_draft": "X（旧Twitter）投稿用下書き。'
+    "絵文字1個＋改行＋本文1〜2文＋末尾に{URL}プレースホルダー。"
+    'URLを除いて100〜130文字。ハッシュタグ不要。"\n'
     "}"
 )
 
@@ -51,7 +56,22 @@ def parse_ai_response(article_id: str, raw_text: str) -> ProcessedDraft:
         background_analysis=_to_str(data["background_analysis"]),
         zenn_article_structure=_to_str(data["zenn_article_structure"]),
         monetization_idea=_to_str(data["monetization_idea"]),
+        x_post_draft=_to_str(data["x_post_draft"]),
     )
+
+
+def _build_user_content(article: RawArticle, user_status: str) -> str:
+    """Gemini へ渡す user_content 文字列を組み立てる（テスト対象）"""
+    parts: list[str] = []
+    if user_status:
+        parts.append(f"<user_interests>\n{user_status}\n</user_interests>")
+    parts.append(
+        f"Title: {article.title}\n"
+        f"URL: {article.url}\n"
+        f"Source: {article.source_name} / {article.category}\n\n"
+        f"Summary:\n{article.summary}"
+    )
+    return "\n\n".join(parts)
 
 
 def _build_client() -> genai.Client:
@@ -64,24 +84,20 @@ def _build_client() -> genai.Client:
 def analyze_article(
     article: RawArticle,
     client: genai.Client | None = None,
+    user_status: str = "",
 ) -> ProcessedDraft:
     """RawArticle 1件を Gemini に渡し、ProcessedDraft を返す"""
     if client is None:
         client = _build_client()
 
-    user_content = (
-        f"Title: {article.title}\n"
-        f"URL: {article.url}\n"
-        f"Source: {article.source_name} / {article.category}\n\n"
-        f"Summary:\n{article.summary}"
-    )
+    user_content = _build_user_content(article, user_status)
 
     response = client.models.generate_content(
         model=MODEL,
         contents=user_content,
         config=types.GenerateContentConfig(
             system_instruction=_SYSTEM_PROMPT,
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             thinking_config=types.ThinkingConfig(thinking_budget=0),
         ),
     )
@@ -95,11 +111,12 @@ def analyze_article(
 def analyze_articles(
     articles: list[RawArticle],
     client: genai.Client | None = None,
+    user_status: str = "",
 ) -> list[ProcessedDraft]:
     """複数の RawArticle を順次処理して ProcessedDraft のリストを返す"""
     if client is None:
         client = _build_client()
-    return [analyze_article(article, client) for article in articles]
+    return [analyze_article(article, client, user_status) for article in articles]
 
 
 if __name__ == "__main__":

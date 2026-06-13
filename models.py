@@ -36,6 +36,7 @@ class ProcessedDraft(BaseModel):
     background_analysis: str = Field(..., description="なぜ海外で流行しているかの背景（日本語）")
     zenn_article_structure: str = Field(..., description="Zenn記事にする場合のタイトル・構成案（日本語）")
     monetization_idea: str = Field(..., description="日本市場向けローカライズビジネスモデル（日本語）")
-    
+    x_post_draft: str = Field(..., description="X（旧Twitter）投稿用下書き（日本語・絵文字フック付き）")
+
     # default_factory を安全な関数に変更
     processed_at: str = Field(default_factory=get_utc_now_iso, description="AI処理日時")
