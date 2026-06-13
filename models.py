@@ -37,6 +37,9 @@ class ProcessedDraft(BaseModel):
     zenn_article_structure: str = Field(..., description="Zenn記事にする場合のタイトル・構成案（日本語）")
     monetization_idea: str = Field(..., description="日本市場向けローカライズビジネスモデル（日本語）")
     x_post_draft: str = Field(..., description="X（旧Twitter）投稿用下書き（日本語・絵文字フック付き）")
+    # バッチ分析で追加されるバズ指標（単記事パスとの後方互換のためデフォルト値あり）
+    viral_score: int = Field(default=0, description="1〜5のバズ度スコア（0=バッチ未使用時）")
+    improved_title: str = Field(default="", description="バズる法則を適用した日本語タイトル改善案")
 
     # default_factory を安全な関数に変更
     processed_at: str = Field(default_factory=get_utc_now_iso, description="AI処理日時")

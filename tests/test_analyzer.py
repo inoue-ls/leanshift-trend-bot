@@ -175,6 +175,8 @@ def _make_batch_payload(articles: list[RawArticle], reverse: bool = False) -> st
             "article_id": f"art-{i+1:03d}",
             "title": article.title,
             "evaluation_reason": f"reason {i+1}",
+            "viral_score": (i % 5) + 1,
+            "improved_title": f"改善タイトル {i+1}",
             "one_line_summary": f"要約 {i+1}",
             "background_analysis": f"背景 {i+1}",
             "zenn_article_structure": f"構成 {i+1}",
@@ -215,6 +217,17 @@ def test_parse_batch_response_all_fields_mapped() -> None:
     assert drafts[0].zenn_article_structure == "構成 1"
     assert drafts[0].monetization_idea == "マネタイズ 1"
     assert "{URL}" in drafts[0].x_post_draft
+    assert drafts[0].viral_score == 1          # (0 % 5) + 1
+    assert drafts[0].improved_title == "改善タイトル 1"
+
+
+def test_parse_batch_response_viral_score_range() -> None:
+    """viral_score が 1〜5 の範囲で正しくマッピングされることを確認"""
+    articles = [_make_article() for _ in range(5)]
+    id_to_article = {f"art-{i+1:03d}": a for i, a in enumerate(articles)}
+    drafts = parse_batch_response(_make_batch_payload(articles), id_to_article)
+    scores = [d.viral_score for d in drafts]
+    assert all(1 <= s <= 5 for s in scores)
 
 
 # --- analyze_articles_batch（Gemini クライアントをモック）---

@@ -37,10 +37,14 @@ def save_markdown_report(
         lines += ["## ユーザーステータス", "", user_status, "", "---", ""]
 
     for i, (article, draft) in enumerate(zip(articles, drafts), 1):
+        stars = "⭐" * draft.viral_score if draft.viral_score > 0 else "—"
+        display_title = draft.improved_title if draft.improved_title else article.title
         lines += [
-            f"## 記事 {i} — [{article.source_name}] {article.title}",
+            f"## 第 {i} 位 — [{article.source_name}] {display_title}",
             "",
-            f"**URL:** {article.url}",
+            f"- **元記事:** {article.title}",
+            f"- **URL:** {article.url}",
+            f"- **🔥 バズ度:** {stars} ({draft.viral_score}/5)",
             "",
             "### 一言要約",
             "",
@@ -114,7 +118,10 @@ def main() -> None:
 
     for i, draft in enumerate(drafts, 1):
         article = article_by_id[draft.article_id]
-        print(f"\n【第 {i} 位】[{article.source_name}] {article.title}")
+        stars = "⭐" * draft.viral_score if draft.viral_score > 0 else "—"
+        display_title = draft.improved_title if draft.improved_title else article.title
+        print(f"\n【第 {i} 位】{stars} [{article.source_name}] {display_title}")
+        print(f"  元記事: {article.title}")
         print(f"  URL: {article.url}")
         print()
         print(f"  ▶ 一言要約\n    {draft.one_line_summary}")
