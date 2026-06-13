@@ -138,6 +138,21 @@ crontab -e
 cat logs/$(date +%Y-%m-%d).log
 ```
 
+### 4. PC 起動時に自動実行する（anacron 代替）
+
+cron は「PC が起動していない時刻」には実行されません。  
+7 時を過ぎてから PC を起動した日でも当日分を生成するには、  
+`~/.bashrc`（または `~/.bash_profile`）に以下の **1 行** を追加します。
+
+```bash
+bash /home/saishin/gtd/03_projects/leanshift-trend-bot/scripts/run_daily.sh &
+```
+
+> - `&` を付けてバックグラウンド実行にすることでシェルの起動を妨げません。  
+> - `run_daily.sh` には冪等ガードが組み込まれており、当日分の  
+>   `outputs/YYYY-MM-DD_trends.md` がすでに存在する場合は即座に終了します。  
+>   cron（7 時実行済み）と起動時実行が重複しても二重生成にはなりません。
+
 ---
 
 ## 開発
