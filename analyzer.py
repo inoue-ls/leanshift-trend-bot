@@ -106,7 +106,19 @@ def _build_client() -> genai.Client:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise EnvironmentError("GEMINI_API_KEY が設定されていません。.env ファイルを確認してください。")
-    return genai.Client(api_key=api_key)
+    # google-genai はデフォルトでリトライ無効（1回失敗即エラー）のため、
+    # 503（高負荷）等の一時的なエラーに備えて明示的に有効化する。
+    retry_options = types.HttpRetryOptions(
+        attempts=5,
+        initial_delay=2.0,
+        max_delay=30.0,
+        exp_base=2.0,
+        jitter=1.0,
+    )
+    return genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(retry_options=retry_options),
+    )
 
 
 def analyze_article(
@@ -275,7 +287,7 @@ def analyze_articles_batch(
             response_mime_type="application/json",
             response_schema=_BatchAnalysisResponse,
             temperature=0.2,
-            max_output_tokens=8192,
+            max_output_tokens=32768,
         ),
     )
 
