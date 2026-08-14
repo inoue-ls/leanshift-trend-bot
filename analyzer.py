@@ -298,7 +298,7 @@ def analyze_articles_batch(
 
 
 if __name__ == "__main__":
-    from fetcher import fetch_hn_articles
+    from core.sources.hackernews import fetch_hn_articles
 
     articles = fetch_hn_articles(limit=1)
     drafts = analyze_articles(articles)

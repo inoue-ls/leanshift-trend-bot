@@ -1,11 +1,9 @@
 import pathlib
 from datetime import date
-from fetcher import (
-    fetch_hn_articles,
-    fetch_product_hunt_articles,
-    fetch_techcrunch_articles,
-    fetch_reddit_articles,
-)
+from core.sources.hackernews import fetch_hn_articles
+from core.sources.producthunt import fetch_product_hunt_articles
+from core.sources.techcrunch import fetch_techcrunch_articles
+from core.sources.reddit import fetch_reddit_articles
 from analyzer import analyze_articles_batch, _build_client
 from models import RawArticle, ProcessedDraft, ZennDraft
 
