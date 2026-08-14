@@ -1,6 +1,8 @@
 import asyncio
 import pathlib
+import sys
 from datetime import date
+from core.analysis.client import build_client
 from orchestration.langgraph_app.graph import build_graph
 from orchestration.langgraph_app.checkpointer import build_checkpointer
 from orchestration.langgraph_app.state import GraphState
@@ -18,13 +20,15 @@ def load_user_status() -> str:
 
 
 async def run() -> None:
-    user_status = load_user_status()
+    # GEMINI_API_KEY が無い/不正な場合はここで即座に失敗させる。
+    # generate_node/evaluate_node 内で呼ばれると、記事単位の broad except に
+    # 飲み込まれて "0/12 件処理成功" + exit 0 という偽の部分成功に見えてしまうため、
+    # 何も出力しないうちに fail-fast させる。
+    build_client()
 
-    print("=" * 60)
-    print("  leanshift-trend-bot | LangGraph版")
-    print("=" * 60)
-    if user_status:
-        print(f"\n[ユーザーステータス] {user_status}")
+    print("[実行開始] LangGraphパイプラインを起動します...")
+
+    user_status = load_user_status()
 
     initial_state: GraphState = {
         "user_status": user_status,
@@ -41,6 +45,14 @@ async def run() -> None:
             initial_state,
             config={"configurable": {"thread_id": thread_id}, "max_concurrency": MAX_CONCURRENCY},
         )
+
+    if not final_state["ranked"] and final_state["articles"]:
+        print(
+            f"[エラー] {len(final_state['articles'])} 件の記事取得に成功しましたが、"
+            "全記事の分析処理に失敗しました。GEMINI_API_KEY やネットワーク状態を確認してください。",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     print(format_console_report(final_state["ranked"], user_status))
     print(f"\n{len(final_state['ranked'])}/{len(final_state['articles'])} 件処理成功")
