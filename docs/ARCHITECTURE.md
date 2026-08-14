@@ -1,5 +1,9 @@
 # プロジェクト・アーキテクチャ概要書 (ARCHITECTURE)
 
+> **注意:** 本書は移行前(線形パイプライン)時点の記述です。LangGraph移行後の設計は
+> `docs/superpowers/specs/2026-08-14-langgraph-migration-design.md` を参照してください。
+> `fetcher.py` / `analyzer.py` は `core/` と `orchestration/langgraph_app/` に分割・移設されています。
+
 本書は、`leanshift-trend-bot` の全体像、データフロー、各モジュールの責務、および設計書の一覧をまとめた、**新メンバーが3分でシステム全体を把握できるためのオンボーディングガイド** です。
 
 ---
