@@ -1,65 +1,68 @@
 # leanshift-trend-bot
 
-海外テックフィードの最新トレンド記事を **Gemini 2.0 Flash（一撃バッチAPIコール）** で自動分析・順位付けし、日本語の起業アイデア、Zenn用ブログ構成、およびX（旧Twitter）投稿用下書きを自動生成するキュレーションシステムです。
+海外テックフィードの最新トレンド記事を **LangGraph + Gemini 2.5 Flash Lite** で自動分析・順位付けし、日本語の起業アイデア、Zenn用ブログ構成、およびX（旧Twitter）投稿用下書きを自動生成するキュレーションシステムです。
+
+記事ごとにSend APIで並列fan-outし、各記事は「生成 → 自己評価 → 改善」のループ（最大3回）を経て品質を担保します。チェックポイント（AsyncSqliteSaver）による再開性、LangGraph Studioでのグラフ可視化にも対応しています。
 
 ---
 
-## 🚀 主要機能 (6大機能 ＋ Zennドラフト)
+## 🚀 主要機能
 
-1.  **4つの主要テックソースからの自動収集**
-    *   Hacker News (points>=200)、Product Hunt、TechCrunch Startups、Reddit r/webdev からそれぞれ3件、計12件の記事を自動取得。
+1.  **4つの主要テックソースからの並列自動収集**
+    *   Hacker News (points>=200)、Product Hunt、TechCrunch Startups、Reddit r/webdev からそれぞれ3件、計12件の記事をLangGraphの並列ノードで自動取得。
 2.  **HTMLクレンジングによる不要ノイズ除去**
     *   RSSのサマリーに含まれる不要なHTMLタグを自動的にクレンジングし、APIトークン消費量を節約。
 3.  **ユーザーステータス（my_status.txt）連携**
     *   `my_status.txt` に書かれた「今週の関心」を自動で読み込み、AI解析の切り口や優先順位をパーソナライズ。
-4.  **一撃バッチ分析と相対順位付け（API消費8割カット＆3倍速化）**
-    *   12記事を一括でGemini 2.0 Flashへ送信。記事全体の相対評価を行い、ユーザーの関心にマッチした順（1位〜12位）に自動ソート。
+4.  **記事ごとのSend API fan-out分析＋自己評価ループ**
+    *   12記事をSend APIで並列に個別分析。各記事は生成 → 機械的チェック＋LLM自己評価 → 不合格ならフィードバック付きで再生成、というループを最大3回実行してから確定。fan-in後は関心度・ビジネス価値・新規性の重み付けスコアで機械的にランキング。
 5.  **バズ度評価（1〜5）と日本語タイトル改善**
     *   日本のテックコミュニティ（X、Zenn、はてブ）での拡散力を5段階でスコアリング。「バズるタイトルの法則」に則った日本語タイトル改善案を提案。
 6.  **URL対応のX（旧Twitter）投稿下書き自動生成**
     *   元のURLプレースホルダーを末尾に含め、絵文字フックを用いた100〜130文字（日本語）のSNSドラフトを自動生成。
-*   **【統合機能】Zenn記事構成案（ZennDraft）の作成**
+7.  **Zenn記事構成案の作成**
     *   ブログ記事の仮タイトル、見出し構成（H2以下）、キャッチーな導入文、および関連タグを自動生成。
+8.  **チェックポイントによる再開性**
+    *   `AsyncSqliteSaver`（WALモード）で実行状態を永続化。同日中の再実行は途中から再開可能。
+9.  **LangGraph Studio対応**
+    *   `langgraph.json` を同梱。`langgraph dev` でグラフ構造を可視化・デバッグできる。
+
+---
+
+## 🏗️ アーキテクチャ
+
+将来LangGraphから他フレームワークへ移行することも見据え、ports-and-adapters構成を採用しています。
+
+- **`core/`** — フレームワーク非依存のドメインロジック（RSS取得・プロンプト構築・パース・自己評価・ランキング・レポート生成）。LangGraphに依存しない。
+- **`orchestration/langgraph_app/`** — LangGraph固有のグラフ・ノード・State・checkpointer実装。`core/` の関数を呼び出すだけの薄いアダプタ層。
+
+```
+START → 4ソース並列fetch → dispatch(Send API fan-out) → 記事ごとに
+  [generate → evaluate → (不合格なら再生成 / 合格ならEND)]
+→ fan-in → 重み付けランキング → レポート保存 → END
+```
+
+詳細な設計は [`docs/superpowers/specs/2026-08-14-langgraph-migration-design.md`](docs/superpowers/specs/2026-08-14-langgraph-migration-design.md) を参照してください。
 
 ---
 
 ## 💻 デモ出力（コンソール）
 
 ```text
+[実行開始] LangGraphパイプラインを起動します...
 ============================================================
-  leanshift-trend-bot  |  4ソース → 日本語ビジネスアイデア
+  leanshift-trend-bot | LangGraph版
 ============================================================
 
 [ユーザーステータス] 今週の関心: Next.js, 音楽生成AI
 
-[取得 1/4] Hacker News から上位 3 件を取得中...
-      3 件取得完了
-...
-合計 12 件のデータ取得完了
-
-[分析] Gemini 2.0 Flash で一括バッチ分析中（1回のAPIコール）...
-      12 件の分析完了（関心度順にソート済み）
-
-[結果] 分析結果を表示します（関心度順）
-============================================================
-
-【第 1 位】⭐⭐⭐⭐⭐ [Hacker News] AIの未来はOSSにあり？
+【第 1 位】⭐⭐⭐⭐ [Hacker News] AIの未来はOSSにあり？
   元記事: Open source AI must win
   URL: https://opensourceaimustwin.com/?share=v2
 
-  ▶ 一言要約
-    オープンソースAIの重要性と、それが業界をリードすべき理由を論じる記事。
-
-  ▶ 背景分析
-    AIの発展においてOSSが果たすべき透明性やカスタマイズ性について論じています...
-
-  ▶ Zenn 記事構成案
-    タイトル: 【徹底議論】なぜオープンソースAIが勝たねばならないのか？
-    見出し構成:
-    - 1. はじめに：AIの現状とオープンソース
-    - 2. OSSのメリット：透明性とカスタマイズ性
-    - 3. 音楽生成AIなど創作分野におけるオープンソースの可能性
-    ...
+  ▶ 要約
+    オープンソースAIの重要性と、それが業界をリードすべき理由を論じる記事。透明性やカスタマイズ性の観点から、
+    海外テックコミュニティで活発に議論されています。
 
   ▶ マネタイズアイデア
     オープンソースAIモデルの商用利用ライセンス販売、または関連する構築・運用コンサルティング。
@@ -71,7 +74,9 @@
 ------------------------------------------------------------
 ...
 
-[保存完了] outputs/2026-06-14_trends.md
+12/12 件処理成功
+
+[保存完了] outputs/2026-08-14_trends.md
 ```
 
 ---
@@ -85,6 +90,8 @@ git clone https://github.com/inoue-ls/leanshift-trend-bot.git
 cd leanshift-trend-bot
 pip install -r requirements.txt
 ```
+
+`requirements.txt` には `langgraph` / `langgraph-checkpoint-sqlite` / `google-genai` も含まれており、上記コマンド一発でインストールされます。
 
 ### 2. 環境変数の設定
 
@@ -107,6 +114,29 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ```bash
 python3 main.py
 ```
+
+実行状態は `checkpoints.sqlite`（`.gitignore` 済み）に永続化されます。同日中に再実行すると、`thread_id`（日付ベース）が同じであれば途中から再開されます。
+
+---
+
+## 🎨 LangGraph Studio でグラフを確認する
+
+`langgraph-cli` は Python 3.11 以上が必要です。開発機のPythonが3.10系でも、[uv](https://docs.astral.sh/uv/) で一時環境を作れば `requirements.txt` を変更せずに確認できます。
+
+```bash
+uv run --python 3.11 --with-requirements requirements.txt --with "langgraph-cli[inmem]" \
+  -- langgraph dev --config langgraph.json
+```
+
+起動すると以下が表示されます。
+
+```
+- 🚀 API: http://127.0.0.1:2024
+- 🎨 Studio UI: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+- 📚 API Docs: http://127.0.0.1:2024/docs
+```
+
+Studio UI から `fetch_hn`/`fetch_ph`/`fetch_tc`/`fetch_reddit`/`dispatch`/`analyze_article`/`rank`/`report` の各ノードとグラフ構造を可視化できます。
 
 ---
 
@@ -145,10 +175,10 @@ bash /absolute/path/to/leanshift-trend-bot/scripts/run_daily.sh &
 
 ## 📝 outputs/ 出力レポートのサンプル
 
-分析結果は `outputs/YYYY-MM-DD_trends.md` に以下の美しい形式で自動生成されます。
+分析結果は `outputs/YYYY-MM-DD_trends.md` に以下の形式で自動生成されます。
 
 ```markdown
-# Trend Report — 2026-06-14
+# Trend Report — 2026-08-14
 
 ## ユーザーステータス
 
@@ -160,15 +190,12 @@ bash /absolute/path/to/leanshift-trend-bot/scripts/run_daily.sh &
 
 - **元記事:** Open source AI must win
 - **URL:** https://opensourceaimustwin.com/?share=v2
-- **🔥 バズ度:** ⭐⭐⭐⭐⭐ (5/5)
+- **🔥 バズ度:** ⭐⭐⭐⭐ (4/5)
 
-### 一言要約
+### 要約
 
-オープンソースAIの重要性と、それが業界をリードすべき理由を論じる記事。
-
-### 背景分析
-
-AIの発展においてOSSが果たすべき透明性やカスタマイズ性について論じています...
+オープンソースAIの重要性と、それが業界をリードすべき理由を論じる記事。透明性やカスタマイズ性の観点から、
+海外テックコミュニティで活発に議論されています。
 
 ### 📝 Zenn構成案
 
@@ -219,14 +246,14 @@ python3 -m pytest -v
 
 ## 📂 設計ドキュメント (docs/)
 
-機能拡張の根拠やAIプロンプト設計は `docs/` に格納されています。
-
-*   [ARCHITECTURE.md](docs/ARCHITECTURE.md) — アーキテクチャ構成・データフロー・モジュールの責務
+*   [ARCHITECTURE.md](docs/ARCHITECTURE.md) — 移行前（線形パイプライン時代）のアーキテクチャ概要。現行のLangGraph構成は下記の設計書を参照
+*   [superpowers/specs/2026-08-14-langgraph-migration-design.md](docs/superpowers/specs/2026-08-14-langgraph-migration-design.md) — LangGraph移行設計書（core/orchestration分離、グラフフロー、State設計）
+*   [superpowers/plans/2026-08-14-langgraph-migration.md](docs/superpowers/plans/2026-08-14-langgraph-migration.md) — LangGraph移行の実装計画（18タスク、TDD）
 *   [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) — 開発・テスト手順、エージェント二刀流の役割分担
 *   [CHANGELOG.md](docs/CHANGELOG.md) — gitコミットベースの機能変更履歴
-*   [gemini_prompt_v2_draft.md](docs/gemini_prompt_v2_draft.md) — Gemini 2.0 Flash システムプロンプト設計
+*   [gemini_prompt_v2_draft.md](docs/gemini_prompt_v2_draft.md) — Geminiシステムプロンプト設計（移行前のドラフト）
 *   [prompt_fewshot_examples.md](docs/prompt_fewshot_examples.md) — プロンプト出力を安定させるFew-Shotサンプル例
 *   [ranking_logic_design.md](docs/ranking_logic_design.md) — 関心度順位付けのスコアリング基準とエッジケース設計
-*   [ranking_batch_design.md](docs/ranking_batch_design.md) — 一撃バッチ処理移行・Pydanticスキーマ設計・コスト計算
+*   [ranking_batch_design.md](docs/ranking_batch_design.md) — 旧・一撃バッチ処理設計（移行前）
 *   [viral_title_design.md](docs/viral_title_design.md) — 日本語タイトル改善の5大バズ法則
 *   [mvp_checklist.md](docs/mvp_checklist.md) — MVP開発進捗・未完了タスク状況
