@@ -1,0 +1,9 @@
+# PythonのソースコードとテストはAntigravityに触らせない
+*.py
+tests/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.env
+
+# ドキュメントとステータスファイル、出力先だけは触って良い（ここには書かない）

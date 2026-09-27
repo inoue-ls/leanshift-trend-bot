@@ -1,3 +1,11 @@
 .env
 __pycache__/
 checkpoints.sqlite*
+
+# Runtime artifacts
+logs/
+outputs/
+.langgraph_api/
+
+# Personal profile (KPIs) — public repo なので追跡しない
+user_profile.yaml
