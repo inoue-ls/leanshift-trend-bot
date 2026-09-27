@@ -82,17 +82,17 @@ Agent ツールで `builder` サブエージェントを起動し、以下を渡
 
 ### B-3: sentry で検証 & 自己修復ループ（最大3回）
 
-Agent ツールで `sentry` サブエージェントを起動し、`runtime.test_command` の実行と `sentry.md` のセキュリティ監査を行わせる。
+Agent ツールで `sentry` サブエージェントを起動し、試行回数を渡す。sentry はテスト実行と差分の機械的レビュー（セキュリティ・過剰設計・境界破壊）を行い、`SHIP | RETRY | HALT` を返す。別のレビュアーエージェントは使わない。
 
-- **SHIP（全 Green かつ APPROVED）:** B-4 へ。
-- **RETRY_BUILDER（試行回数 < 3）:** 失敗ログの **先頭30行のみ** を builder に渡して修正させ、sentry を再実行する。
-- **HALT_AND_ROLLBACK（3回失敗）:**
+- **SHIP:** B-4 へ。
+- **RETRY（試行回数 < 3）:** sentry の Issues（最大3行）と、あれば失敗ログ（先頭30行）**だけ** を builder に渡して修正させ、sentry を再実行する。
+- **RETRY が3回目 または HALT（セキュリティ欠陥は即時）:** ロールバックして停止する。
 
   ```bash
   git checkout -f <base> && git branch -D vibe/temp-feature && git clean -fd
   ```
 
-  `[FATAL] spec-cycle halted after 3 failed attempts. Rolled back to <base>.` と最終試行の失敗ログ（30行）を出力して停止する。
+  `[FATAL] spec-cycle halted (<gate>, attempt <n>/3). Rolled back to <base>.` と、最終試行の Issues と失敗ログを出力して停止する。
 
 ### B-4: spec.json 自律更新 & コミット
 
