@@ -1,0 +1,55 @@
+{
+  "cycle_type": "cycle_1_tracer | cycle_n_expansion",
+  "status": "ready_for_implementation | completed",
+  "feature_name": "機能名",
+  "runtime": {
+    "language": "Cycle 1 で決めた最小の言語・実行環境（例: node 24 + TypeScript / python 3.13）",
+    "test_command": "全テストを実行するコマンド（例: npm test / python -m pytest）",
+    "format_command": "整形コマンド（不要なら空文字）",
+    "test_file_convention": "テストの配置規約（例: src/foo.ts -> src/foo.test.ts）"
+  },
+  "current_baseline": {
+    "completed_feature": "現在動いている機能の事実（初回は \"None\"）",
+    "test_status": "all_green | initial",
+    "interface": {
+      "input": "確定済みの入力データ型",
+      "output": "確定済みの出力データ型"
+    }
+  },
+  "target_increment": {
+    "focus": "今回追加するたった1つのこと（Why / What）",
+    "acceptance_criteria": {
+      "given": "前提条件",
+      "when": "入力・実行トリガー",
+      "then": "期待される結果・振る舞い（assert 可能な値・型・状態）"
+    },
+    "extension_point": "将来の拡張を受け止めるインターフェース定義"
+  },
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "Tracer Bullet（I/F定義 & 契約テスト Red）",
+      "assertion": "最小入力に対して期待する型/値が返ること（Red確認）",
+      "scope": "runtime.test_file_convention に従うテストファイル および インターフェース定義"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）",
+      "assertion": "全テストがパスすること（Green確認）",
+      "scope": "最小プレーンコード"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新",
+      "assertion": "既存テスト全件Greenのまま spec.json が更新されること",
+      "scope": "spec.json"
+    }
+  ],
+  "wont": [
+    "今回も将来も作らない過剰設計・UI・不要な抽象化"
+  ],
+  "next_sprint_backlog": [
+    "次期サイクルで足すべき最小要件1",
+    "次期サイクルで足すべき最小要件2"
+  ]
+}

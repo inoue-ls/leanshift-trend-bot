@@ -9,3 +9,12 @@ outputs/
 
 # Personal profile (KPIs) — public repo なので追跡しない
 user_profile.yaml
+
+# Claude Code personal settings overrides
+**/.claude/settings.local.json
+
+# Local environment
+.env.local
+
+# Dependencies
+node_modules/

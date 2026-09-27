@@ -33,3 +33,18 @@ python3 -m pytest
 
 `models.py` は**変更不可のマスター**。`RawArticle` と `ProcessedDraft` の定義は一切変えない。
 新しいデータソース（音楽・投資・X 等）が増えても必ずこのモデルに適合させる。
+
+## Runtime
+- No language, framework, or library is fixed up front. Cycle 1 of `/spec-cycle` picks the smallest runtime that solves the pain and records it in `spec.json` -> `runtime`.
+- Run tests and formatting only through `runtime.test_command` / `runtime.format_command`.
+- Test file placement follows `runtime.test_file_convention` (tests live next to source).
+- Existing stack: Python 3.10 + Pydantic. Cycle 1 must set runtime accordingly (`test_command`: `python3 -m pytest`, tests under `tests/` mirroring the source tree), pass `python3 -m mypy .` with 0 errors (constitution ①), and never modify `models.py`.
+
+## Autonomous pipeline (Tesla-style vibe coding)
+- `/spec-cycle` is the single entry point (`.claude/skills/spec-cycle/`). `/spec-cycle "<pain>"` runs one sprint end-to-end: requirements & scope reduction -> `spec.json` (single source of truth) -> `builder` (TDD) / `sentry` (gatekeeper) with a self-healing loop capped at 3 retries -> baseline update. Run with no args to advance the next backlog item.
+- All autonomous work happens on the throwaway branch `vibe/temp-feature`. Never run the pipeline directly on `main`.
+- On 3 consecutive failures the pipeline auto-rolls back (`git checkout -f <base>`, delete branch, `git clean -fd`) and stops. Because of that clean, it refuses to start on a dirty working tree.
+- **No fake tests:** every test asserts real output / state / thrown errors. Never mock the unit under test. No `expect(true).toBe(true)`.
+- Failure logs are truncated to the first ~30 lines before being passed between agents.
+- Secrets: `.env*` is never read into context or committed. Stage with `git add -u` plus explicit paths for new files, never `git add .`.
+- Destructive commands (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`) are denied in `.claude/settings.json`.

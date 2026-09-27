@@ -1,5 +1,45 @@
 {
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(npx biome *)",
+      "Bash(git checkout *)",
+      "Bash(git branch -D *)",
+      "Bash(git add -u *)",
+      "Bash(git commit *)",
+      "Bash(git clean -fd*)",
+      "Bash(python3 -m pytest *)",
+      "Bash(python3 -m mypy *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(sudo *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(* DROP TABLE *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.py\""
+          }
+        ]
+      }
+    ]
   }
 }
