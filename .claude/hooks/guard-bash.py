@@ -77,6 +77,7 @@ def dangerous_rm(cmd: str) -> bool:
 RULES = [
     (r"\bgit\s+push\s+([^|&;]*\s)?(--force(\b|[^-])|-f\b)", "forced git push"),
     (r"\bgit\s+reset\s+--hard\b", "git hard reset"),
+    (r"\bgit\s+add\s+([^|&;]*\s)?(-A\b|--all\b|\.(?=\s|$|[|&;]))", "blanket git add (use git add -u plus explicit paths)"),
     (r"\bgit\s+clean\s+-[a-zA-Z]*f[a-zA-Z]*\s+[^|&;]*(/|~|\*)", "git clean -f on a broad path"),
     (r"\b(DROP|TRUNCATE)\s+(TABLE|DATABASE|SCHEMA)\b", "destructive SQL (DROP/TRUNCATE)"),
     (r"\bDELETE\s+FROM\s+[A-Za-z_.]+\s*(;|$)", "unscoped SQL DELETE"),

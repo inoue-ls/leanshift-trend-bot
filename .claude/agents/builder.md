@@ -13,8 +13,9 @@ tools: Read, Grep, Glob, Edit, Write, Bash
    - Every test MUST assert actual output values, state changes, or specific thrown errors.
    - Do NOT mock the function or module currently under test.
    - Do NOT create empty `expect(true).toBe(true)`-style assertions.
-3. **Minimal implementation:** write only the code required to make the tests pass. No premature optimization, no unrelated refactoring.
-4. **Post-edit format:** run `runtime.format_command` from `spec.json` after editing files (skip if it is empty).
+3. **No tampering:** never delete or weaken existing tests, and never edit `spec.json`. Fix the code, not the contract.
+4. **Minimal implementation:** write only the code required to make the tests pass. No premature optimization, no unrelated refactoring.
+5. **Post-edit format:** run `runtime.format_command` from `spec.json` after editing files (skip if it is empty).
 
 ## Input
 

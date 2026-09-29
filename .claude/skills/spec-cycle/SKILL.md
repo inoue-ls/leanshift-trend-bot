@@ -42,7 +42,7 @@ git branch -d vibe/temp-feature 2>/dev/null; git checkout -b vibe/temp-feature
 
 `agent-a.md` のルールに従い、次スプリントの `spec.json` を生成する。スキーマは `spec-schema.json`。
 
-- **初回（spec.json なし、入力 = ペイン）:** `cycle_type: "cycle_1_tracer"`。ペインから過剰仕様を削除し、Tracer Bullet を1本だけ定義する。あわせてペインを解く最小の言語・実行環境を決め、`runtime` に記録する。
+- **初回（spec.json なし、入力 = ペイン）:** `cycle_type: "cycle_1_tracer"`。ペインから過剰仕様を削除し、Tracer Bullet を1本だけ定義する。あわせてペインを解く最小の言語・実行環境を決め、`runtime` に記録する。その runtime がテスト実行時に生成するキャッシュ・成果物（例: Python の `__pycache__/`、Node の `node_modules/`）を `.gitignore` に追記する。これを怠ると次サイクルの Step 0 が dirty で停止する。
 - **拡張（spec.json あり、入力なし）:** `cycle_type: "cycle_n_expansion"`。`current_baseline` を保持したまま、`next_sprint_backlog` の先頭1件だけを `target_increment` に昇格させる。
 - **拡張 + 新ペイン（spec.json あり、入力あり）:** ペインを縮退させて `next_sprint_backlog` に優先度順で差し込み、その先頭1件を昇格させる。既存の `current_baseline` と `wont` は壊さない。
 
@@ -55,7 +55,7 @@ git branch -d vibe/temp-feature 2>/dev/null; git checkout -b vibe/temp-feature
 - `spec.json` を書き込んだら、仕様だけを先にコミットする（実装失敗時も仕様の差分が追える）:
 
   ```bash
-  git add spec.json && git commit -m "spec: <feature_name> (<cycle_type>)"
+  git add spec.json .gitignore && git commit -m "spec: <feature_name> (<cycle_type>)"
   ```
 
 ---
@@ -77,12 +77,12 @@ Agent ツールで `builder` サブエージェントを起動し、以下を渡
   1. **Red First:** `acceptance_criteria`（given / when / then）を検証する最小テストを書き、`runtime.test_command` で **意図通り失敗する** ことを確認する。既存テストは壊さない。
   2. **Green:** テストを通す物理最小限のプレーンコードを書く。新規抽象クラス・過剰な例外処理・未指定のライブラリ追加は禁止。
   3. **No fake tests:** 実際の出力値・状態・throw を assert する。テスト対象自身をモックしない。`expect(true).toBe(true)` 禁止。
-  4. `wont` の項目は実装しない。
+  4. `wont` の項目は実装しない。既存テストの削除・弱体化と `spec.json` の編集は禁止（sentry が RETRY にする）。
   5. 作成・変更したファイルパスを一覧で報告する。
 
 ### B-3: sentry で検証 & 自己修復ループ（最大3回）
 
-Agent ツールで `sentry` サブエージェントを起動し、試行回数を渡す。sentry はテスト実行と差分の機械的レビュー（セキュリティ・過剰設計・境界破壊）を行い、`SHIP | RETRY | HALT` を返す。別のレビュアーエージェントは使わない。
+Agent ツールで `sentry` サブエージェントを起動し、試行回数を渡す。sentry はテスト実行と差分の機械的レビュー（セキュリティ・テスト / 仕様の改ざん・過剰設計・境界破壊）を行い、`SHIP | RETRY | HALT` を返す。別のレビュアーエージェントは使わない。
 
 - **SHIP:** B-4 へ。
 - **RETRY（試行回数 < 3）:** sentry の Issues（最大3行）と、あれば失敗ログ（先頭30行）**だけ** を builder に渡して修正させ、sentry を再実行する。

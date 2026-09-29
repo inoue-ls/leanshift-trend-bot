@@ -43,9 +43,9 @@ python3 -m pytest
 ## Autonomous pipeline (Tesla-style vibe coding)
 - `/spec-cycle` is the single entry point (`.claude/skills/spec-cycle/`). `/spec-cycle "<pain>"` runs one sprint end-to-end: requirements & scope reduction -> `spec.json` (single source of truth) -> `builder` (TDD) / `sentry` (gatekeeper) with a self-healing loop capped at 3 retries -> baseline update. Run with no args to advance the next backlog item.
 - All autonomous work happens on the throwaway branch `vibe/temp-feature`. Never run the pipeline directly on `main`.
-- `sentry` is the only reviewer: a mechanical SHIP / RETRY / HALT gate (tests, over-engineering, boundary breaks, security). No separate reviewer agent.
+- `sentry` is the only reviewer: a mechanical SHIP / RETRY / HALT gate (security, test / spec tampering, tests, over-engineering, boundary breaks). No separate reviewer agent.
 - On 3 failed attempts, or immediately on a security HALT, the pipeline auto-rolls back (`git checkout -f <base>`, delete branch, `git clean -fd`) and stops. Because of that clean, it refuses to start on a dirty working tree.
 - **No fake tests:** every test asserts real output / state / thrown errors. Never mock the unit under test. No `expect(true).toBe(true)`.
 - Failure logs are truncated to the first ~30 lines before being passed between agents.
-- Secrets: `.env*` is never read into context or committed. Stage with `git add -u` plus explicit paths for new files, never `git add .`.
+- Secrets: `.env*` is never read into context or committed. Stage with `git add -u` plus explicit paths for new files; `git add .` / `-A` / `--all` are blocked by `guard-bash.py`.
 - Destructive commands (`rm -rf`, `git push --force`, `git reset --hard`, `DROP TABLE`) are denied in `.claude/settings.json`.
