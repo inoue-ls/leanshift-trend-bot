@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "completed",
-  "feature_name": "weekly_github_trending_x_accounts",
+  "status": "ready_for_implementation",
+  "feature_name": "skip_contributors_without_x_account",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -47,16 +47,35 @@
     ]
   },
   "target_increment": {
-    "focus": "",
-    "source": "",
+    "focus": "list_weekly_trending_x_accounts が twitter_username の無いコントリビューターを飛ばし、x アカウントを持つ次のコントリビューターの行を返す",
+    "source": "x アカウントが無い人は一覧に要らない",
     "acceptance_criteria": {
-      "given": "",
-      "when": "",
-      "then": ""
+      "given": "get_text が '<article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/acme/llm\">x</a></h2></article>' を返し、get_json が https://api.github.com/repos/acme/llm/contributors に [{\"login\": \"bob\"}, {\"login\": \"carol\"}, {\"login\": \"alice\"}]、https://api.github.com/users/bob に {\"twitter_username\": null}、https://api.github.com/users/carol に {\"twitter_username\": \"\"}、https://api.github.com/users/alice に {\"twitter_username\": \"alice_ai\"} を返す",
+      "when": "list_weekly_trending_x_accounts(get_text, get_json) を呼ぶ",
+      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と完全一致し、\"None\" も \"bob\" も \"carol\" も含まない"
     },
-    "extension_point": ""
+    "extension_point": "list_weekly_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str のシグネチャは変えない。HTTP は引き続き get_text / get_json の注入で差し替える"
   },
-  "execution_steps": [],
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "given の HTML を返す get_text と、contributors に bob / carol / alice、users に twitter_username が null / \"\" / \"alice_ai\" を返す get_json を渡して list_weekly_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストが通り、既存テスト（先頭コントリビューターが x アカウントを持つ場合の list_weekly_trending_x_accounts と list_contributor_x_accounts を含む）もすべて通り、python3 -m mypy . が 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に skip_contributors_without_x_account が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -65,7 +84,9 @@
     "Cycle 1 は trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
     "trending ページの各リポジトリは <article class=\"Box-row\"> 内の <h2> の <a href=\"/<owner>/<repo>\"> で表され、その href から先頭の / を除いたものを owner/repo とする。",
     "trending ページの HTML 取得は JSON 取得とは別の関数 get_text(url) -> str として注入する。",
-    "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。"
+    "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
+    "twitter_username が None または空文字のコントリビューターは「x アカウントが無い人」とみなし、contributors の順に次の人を見る。",
+    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。"
   ],
   "wont": [
     {
@@ -96,6 +117,7 @@
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
     "GitHub API のレート制限・エラー時のリトライや GITHUB_TOKEN による認証",
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
-    "日次バッチ（run_daily.sh / LangGraph）への組み込み"
+    "日次バッチ（run_daily.sh / LangGraph）への組み込み",
+    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする"
   ]
 }
