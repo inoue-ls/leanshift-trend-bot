@@ -18,3 +18,7 @@ user_profile.yaml
 
 # Dependencies
 node_modules/
+
+# Test / type-check caches
+.pytest_cache/
+.mypy_cache/
