@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "completed",
-  "feature_name": "aggregate_weekly_trending_x_accounts",
+  "status": "ready_for_implementation",
+  "feature_name": "filter_ai_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -67,16 +67,35 @@
     ]
   },
   "target_increment": {
-    "focus": "",
-    "source": "",
+    "focus": "今週の trending の一覧を、topics に ai または llm を含むリポジトリだけに絞る",
+    "source": "AI 系の",
     "acceptance_criteria": {
-      "given": "",
-      "when": "",
-      "then": ""
+      "given": "get_text が acme/llm と beta/web の2リポジトリを含む今週の trending HTML を返し、get_json が GET /repos/acme/llm に {\"topics\": [\"llm\"]}、GET /repos/beta/web に {\"topics\": [\"css\"]}、各 contributors に [alice] / [carol]、users に alice→alice_ai、carol→carol_css の twitter_username を返す",
+      "when": "collect_weekly_ai_trending_x_accounts(get_text, get_json) を呼ぶ",
+      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する（beta/web の carol_css は含まれない）"
     },
-    "extension_point": ""
+    "extension_point": "core/github_contributors.py に collect_weekly_ai_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str を追加する。HTTP は get_text / get_json の引数で注入し、テストではそれだけを差し替える。既存の collect_weekly_trending_x_accounts は変えない。"
   },
-  "execution_steps": [],
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "acme/llm と beta/web を含む HTML を返す get_text と、GET /repos/acme/llm → {\"topics\": [\"llm\"]}、GET /repos/beta/web → {\"topics\": [\"css\"]}、contributors → [alice] / [carol]、twitter_username → alice_ai / carol_css を返す get_json を渡して collect_weekly_ai_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストが通り、collect_weekly_trending_x_accounts / list_weekly_trending_x_accounts / list_contributor_x_accounts の既存テストもすべて通り、python3 -m mypy . が 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に filter_ai_weekly_trending_x_accounts が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -92,7 +111,10 @@
     "「トップコントリビューター」は各リポジトリの contributors の先頭3人（x アカウントの有無に関係なく順位で数える）とし、そのうち x アカウントを持つ人だけを出す。",
     "同じ x アカウントが複数のリポジトリに現れたときは、最初に出たリポジトリの1行だけを残す。",
     "行の並びはリポジトリの trending 順、その中は contributors の順とする。",
-    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。"
+    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。",
+    "「AI 系」のリポジトリは、GET /repos/{owner}/{repo} の topics に \"ai\" または \"llm\" を含むものとする。",
+    "絞り込み以外（先頭3人、x アカウントの無い人の除外、重複除去、並び順、行の形式）は collect_weekly_trending_x_accounts と同じとする。",
+    "絞り込んだ一覧は既存関数を変えずに新しい関数 collect_weekly_ai_trending_x_accounts として追加する。"
   ],
   "wont": [
     {
@@ -117,6 +139,7 @@
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
     "日次バッチ（run_daily.sh / LangGraph）への組み込み",
     "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする",
-    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする"
+    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする",
+    "AI 系とみなす topics（現在は ai / llm と仮定）を machine-learning / deep-learning / agents などに広げる、または引数で変えられるようにする"
   ]
 }
