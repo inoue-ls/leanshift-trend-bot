@@ -185,3 +185,14 @@ def test_write_weekly_ai_trending_x_accounts_writes_file(tmp_path: Path) -> None
     assert path.read_text(encoding="utf-8") == (
         "- @alice_ai (alice, acme/agent) https://x.com/alice_ai\n"
     )
+
+
+def test_github_api_request_adds_bearer_token() -> None:
+    from core.github_contributors import github_api_request
+
+    request = github_api_request(
+        "https://api.github.com/users/alice", {"GITHUB_TOKEN": "ghp_test"}
+    )
+
+    assert request.full_url == "https://api.github.com/users/alice"
+    assert request.get_header("Authorization") == "Bearer ghp_test"

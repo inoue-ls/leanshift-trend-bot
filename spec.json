@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
   "status": "completed",
-  "feature_name": "write_weekly_ai_trending_x_accounts_markdown",
+  "feature_name": "github_token_authorization_header",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない",
@@ -84,6 +84,16 @@
           "input": "path: str, get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "None — writes collect_weekly_ai_trending_x_accounts(get_text, get_json) to path as UTF-8 (overwrites); CLI entry `python3 -m core.github_contributors <path>` uses unauthenticated urllib"
         }
+      },
+      {
+        "name": "github_token_authorization_header",
+        "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい",
+        "file": "core/github_contributors.py",
+        "symbol": "github_api_request",
+        "interface": {
+          "input": "url: str, environ: Mapping[str, str]",
+          "output": "urllib.request.Request for url with User-Agent, plus 'Authorization: Bearer <GITHUB_TOKEN>' when environ has a non-empty GITHUB_TOKEN; the CLI's JSON fetch opens it with os.environ"
+        }
       }
     ]
   },
@@ -120,7 +130,9 @@
     "Markdown ファイルに書く一覧は collect_weekly_ai_trending_x_accounts（AI 系に絞った今週の trending）の結果とし、見出しなどは足さずそのまま書く。",
     "書き出し先のパスは引数で受け取り、既にファイルがあれば上書きする。",
     "実際に動かす入口は python3 -m core.github_contributors <出力パス> とし、出力先は gitignore 済みの outputs/ 配下を想定する。",
-    "GITHUB_TOKEN は環境変数から読み、GitHub API へのリクエストに Authorization: Bearer <token> ヘッダーとして付ける（次の増分）。"
+    "GITHUB_TOKEN は環境変数から読み、GitHub API へのリクエストに Authorization: Bearer <token> ヘッダーとして付ける（次の増分）。",
+    "GitHub API へのリクエストは新しい関数 github_api_request(url, environ) で組み立て、環境変数は引数 environ（os.environ と同じ形の辞書）で受け取る。",
+    "GITHUB_TOKEN が無い、または空のときは Authorization ヘッダーを付けない（次の増分以降でテストする）。"
   ],
   "wont": [
     {
@@ -132,12 +144,7 @@
       "keyword": "画面"
     }
   ],
-  "next_sprint_backlog": [
-    {
-      "item": "環境変数 GITHUB_TOKEN があるとき、GitHub API への JSON 取得リクエストに Authorization: Bearer <token> ヘッダーを付ける",
-      "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい"
-    }
-  ],
+  "next_sprint_backlog": [],
   "dropped_backlog": [],
   "proposals": [
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
@@ -148,6 +155,7 @@
     "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする",
     "AI 系とみなす topics（現在は ai / llm と仮定）を machine-learning / deep-learning / agents などに広げる、または引数で変えられるようにする",
     "Markdown ファイルに日付入りの見出しを付ける、またはファイル名を outputs/YYYY-MM-DD_x_accounts.md にする",
-    "GITHUB_TOKEN が無いときに警告を出す、またはレート制限（403/429）時に分かるエラーで止める"
+    "GITHUB_TOKEN が無いときに警告を出す、またはレート制限（403/429）時に分かるエラーで止める",
+    "GITHUB_TOKEN が無いときに Authorization ヘッダーを付けないことをテストする"
   ]
 }
