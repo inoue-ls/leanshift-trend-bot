@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "completed",
-  "feature_name": "skip_contributors_without_x_account",
+  "status": "ready_for_implementation",
+  "feature_name": "aggregate_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -57,16 +57,35 @@
     ]
   },
   "target_increment": {
-    "focus": "",
-    "source": "",
+    "focus": "今週の trending ページの全リポジトリの上位3人のコントリビューターの x アカウントを1つの Markdown 一覧にまとめ、同じ x アカウントは最初に出た1行だけにする",
+    "source": "まとめて一覧で見たい",
     "acceptance_criteria": {
-      "given": "",
-      "when": "",
-      "then": ""
+      "given": "get_text が '<article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/acme/llm\">x</a></h2></article><article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/beta/agent\">y</a></h2></article>' を返し、get_json が https://api.github.com/repos/acme/llm/contributors に [{\"login\": \"alice\"}, {\"login\": \"bob\"}]、https://api.github.com/repos/beta/agent/contributors に [{\"login\": \"alice\"}, {\"login\": \"dave\"}, {\"login\": \"erin\"}, {\"login\": \"frank\"}]、https://api.github.com/users/alice に {\"twitter_username\": \"alice_ai\"}、users/bob に {\"twitter_username\": \"bob_ml\"}、users/dave に {\"twitter_username\": null}、users/erin に {\"twitter_username\": \"erin_dev\"}、users/frank に {\"twitter_username\": \"frank_x\"} を返す",
+      "when": "collect_weekly_trending_x_accounts(get_text, get_json) を呼ぶ",
+      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n- @bob_ml (bob, acme/llm) https://x.com/bob_ml\\n- @erin_dev (erin, beta/agent) https://x.com/erin_dev\\n\" と完全一致する（alice_ai は1行だけ、dave と frank は含まない）"
     },
-    "extension_point": ""
+    "extension_point": "core/github_contributors.py に collect_weekly_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str を追加する。既存の list_weekly_trending_x_accounts / list_contributor_x_accounts のシグネチャと戻り値は変えない。HTTP は引き続き get_text / get_json の注入で差し替える"
   },
-  "execution_steps": [],
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "acme/llm（alice, bob）と beta/agent（alice, dave, erin, frank）の2リポジトリを含む HTML を返す get_text と、twitter_username が alice_ai / bob_ml / null / erin_dev / frank_x を返す get_json を渡して collect_weekly_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n- @bob_ml (bob, acme/llm) https://x.com/bob_ml\\n- @erin_dev (erin, beta/agent) https://x.com/erin_dev\\n\" と一致する",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストが通り、list_weekly_trending_x_accounts と list_contributor_x_accounts の既存テストもすべて通り、python3 -m mypy . が 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に aggregate_weekly_trending_x_accounts が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -77,7 +96,12 @@
     "trending ページの HTML 取得は JSON 取得とは別の関数 get_text(url) -> str として注入する。",
     "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
     "twitter_username が None または空文字のコントリビューターは「x アカウントが無い人」とみなし、contributors の順に次の人を見る。",
-    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。"
+    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。",
+    "一覧の対象は今週の trending ページに載っているすべてのリポジトリ（<article class=\"Box-row\"> の出現順）とする。",
+    "「トップコントリビューター」は各リポジトリの contributors の先頭3人（x アカウントの有無に関係なく順位で数える）とし、そのうち x アカウントを持つ人だけを出す。",
+    "同じ x アカウントが複数のリポジトリに現れたときは、最初に出たリポジトリの1行だけを残す。",
+    "行の並びはリポジトリの trending 順、その中は contributors の順とする。",
+    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。"
   ],
   "wont": [
     {
@@ -105,6 +129,7 @@
     "GitHub API のレート制限・エラー時のリトライや GITHUB_TOKEN による認証",
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
     "日次バッチ（run_daily.sh / LangGraph）への組み込み",
-    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする"
+    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする",
+    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする"
   ]
 }
