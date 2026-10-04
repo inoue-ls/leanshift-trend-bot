@@ -35,3 +35,9 @@ def list_contributor_x_accounts(
     login = get_json(f"{API}/repos/{repo}/contributors")[0]["login"]
     handle = get_json(f"{API}/users/{login}")["twitter_username"]
     return f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+
+
+def collect_weekly_trending_x_accounts(
+    get_text: Callable[[str], str], get_json: Callable[[str], Any]
+) -> str:
+    return ""
