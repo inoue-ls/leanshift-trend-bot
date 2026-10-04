@@ -40,6 +40,36 @@ def test_list_weekly_trending_x_accounts_one_line() -> None:
     )
 
 
+def test_list_weekly_trending_x_accounts_skips_contributors_without_x() -> None:
+    html = (
+        '<article class="Box-row"><h2 class="h3">'
+        '<a href="/acme/llm">x</a></h2></article>'
+    )
+
+    def get_text(url: str) -> str:
+        return html
+
+    def get_json(url: str) -> Any:
+        responses: dict[str, Any] = {
+            "https://api.github.com/repos/acme/llm/contributors": [
+                {"login": "bob"},
+                {"login": "carol"},
+                {"login": "alice"},
+            ],
+            "https://api.github.com/users/bob": {"twitter_username": None},
+            "https://api.github.com/users/carol": {"twitter_username": ""},
+            "https://api.github.com/users/alice": {"twitter_username": "alice_ai"},
+        }
+        return responses[url]
+
+    result = list_weekly_trending_x_accounts(get_text, get_json)
+
+    assert result == "- @alice_ai (alice, acme/llm) https://x.com/alice_ai\n"
+    assert "None" not in result
+    assert "bob" not in result
+    assert "carol" not in result
+
+
 def test_list_contributor_x_accounts_one_line() -> None:
     def get_json(url: str) -> Any:
         if url.startswith("https://api.github.com/search/repositories"):
