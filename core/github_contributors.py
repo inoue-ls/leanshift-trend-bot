@@ -1,5 +1,6 @@
 import re
-from typing import Any, Callable
+import urllib.request
+from typing import Any, Callable, Mapping
 
 WEEKLY_TRENDING_URL = "https://github.com/trending?since=weekly"
 
@@ -94,6 +95,10 @@ def _http_get_text(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "leanshift-trend-bot"})
     with urllib.request.urlopen(req) as res:
         return str(res.read().decode("utf-8"))
+
+
+def github_api_request(url: str, environ: Mapping[str, str]) -> urllib.request.Request:
+    return urllib.request.Request(url)
 
 
 def _http_get_json(url: str) -> Any:
