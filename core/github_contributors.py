@@ -54,3 +54,9 @@ def collect_weekly_trending_x_accounts(
                 seen.add(handle)
                 out += f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
     return out
+
+
+def collect_weekly_ai_trending_x_accounts(
+    get_text: Callable[[str], str], get_json: Callable[[str], Any]
+) -> str:
+    return ""
