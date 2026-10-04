@@ -20,9 +20,12 @@ def list_weekly_trending_x_accounts(
     if match is None:
         return ""
     repo = match.group(1)
-    login = get_json(f"{API}/repos/{repo}/contributors")[0]["login"]
-    handle = get_json(f"{API}/users/{login}")["twitter_username"]
-    return f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+    for contributor in get_json(f"{API}/repos/{repo}/contributors"):
+        login = contributor["login"]
+        handle = get_json(f"{API}/users/{login}")["twitter_username"]
+        if handle:
+            return f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+    return ""
 
 
 def list_contributor_x_accounts(

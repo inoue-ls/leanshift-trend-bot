@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
   "status": "completed",
-  "feature_name": "weekly_github_trending_x_accounts",
+  "feature_name": "skip_contributors_without_x_account",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -43,6 +43,16 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — one Markdown line '- @<handle> (<login>, <owner/repo>) https://x.com/<handle>\\n' for the first repo on https://github.com/trending?since=weekly and its first contributor; calls get_text for the trending page and get_json for the contributors and user URLs"
         }
+      },
+      {
+        "name": "skip_contributors_without_x_account",
+        "source": "x アカウントが無い人は一覧に要らない",
+        "file": "core/github_contributors.py",
+        "symbol": "list_weekly_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — one Markdown line for the first contributor (in contributors order) of the first weekly trending repo whose twitter_username is non-empty; contributors with None or \"\" are skipped; \"\" if none has one"
+        }
       }
     ]
   },
@@ -65,7 +75,9 @@
     "Cycle 1 は trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
     "trending ページの各リポジトリは <article class=\"Box-row\"> 内の <h2> の <a href=\"/<owner>/<repo>\"> で表され、その href から先頭の / を除いたものを owner/repo とする。",
     "trending ページの HTML 取得は JSON 取得とは別の関数 get_text(url) -> str として注入する。",
-    "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。"
+    "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
+    "twitter_username が None または空文字のコントリビューターは「x アカウントが無い人」とみなし、contributors の順に次の人を見る。",
+    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。"
   ],
   "wont": [
     {
@@ -78,10 +90,6 @@
     }
   ],
   "next_sprint_backlog": [
-    {
-      "item": "list_weekly_trending_x_accounts で twitter_username が無い（None または空文字）のコントリビューターを飛ばし、x アカウントを持つ次のコントリビューターの行を出す",
-      "source": "x アカウントが無い人は一覧に要らない"
-    },
     {
       "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
       "source": "まとめて一覧で見たい"
@@ -96,6 +104,7 @@
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
     "GitHub API のレート制限・エラー時のリトライや GITHUB_TOKEN による認証",
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
-    "日次バッチ（run_daily.sh / LangGraph）への組み込み"
+    "日次バッチ（run_daily.sh / LangGraph）への組み込み",
+    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする"
   ]
 }
