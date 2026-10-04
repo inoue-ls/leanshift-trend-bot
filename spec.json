@@ -1,9 +1,10 @@
 {
-  "cycle_type": "cycle_1_tracer",
-  "status": "completed",
-  "feature_name": "github_trending_x_accounts",
+  "cycle_type": "cycle_n_expansion",
+  "status": "ready_for_implementation",
+  "feature_name": "weekly_github_trending_x_accounts",
   "pains": [
-    "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい"
+    "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
+    "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
   ],
   "runtime": {
     "language": "python 3.10 + Pydantic (existing stack)",
@@ -36,22 +37,44 @@
     ]
   },
   "target_increment": {
-    "focus": "",
-    "source": "",
+    "focus": "スター数順の Search API ではなく、GitHub の今週の trending ページ（https://github.com/trending?since=weekly）の先頭リポジトリからトップコントリビューターの x アカウント行を作る",
+    "source": "本当の github trending（今週）から取りたい",
     "acceptance_criteria": {
-      "given": "",
-      "when": "",
-      "then": ""
+      "given": "get_text(url) を差し替えた関数で、https://github.com/trending?since=weekly の応答が HTML 文字列 \"<article class=\\\"Box-row\\\"><h2 class=\\\"h3 lh-condensed\\\"><a href=\\\"/acme/llm\\\">acme / llm</a></h2></article><article class=\\\"Box-row\\\"><h2 class=\\\"h3 lh-condensed\\\"><a href=\\\"/other/tool\\\">other / tool</a></h2></article>\"。get_json(url) を差し替えた関数で、https://api.github.com/repos/acme/llm/contributors の応答が [{\"login\": \"alice\"}]、https://api.github.com/users/alice の応答が {\"login\": \"alice\", \"twitter_username\": \"alice_ai\"}",
+      "when": "core/github_contributors.py の list_weekly_trending_x_accounts(get_text, get_json) を呼ぶ",
+      "then": "戻り値が文字列 \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と完全一致し、get_text が \"https://github.com/trending?since=weekly\" で呼ばれ、get_json が https://api.github.com/search/repositories で始まる URL では一度も呼ばれない"
     },
-    "extension_point": ""
+    "extension_point": "list_weekly_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str。trending ページの HTML は get_text に、GitHub API は get_json に注入し、テストでは固定の文字列・dict/list を返す関数に差し替える。既存の list_contributor_x_accounts(get_json, trending_url) はそのまま残す。後のサイクルで x アカウントの無い人の除外・複数リポジトリへの拡張を受け止める"
   },
-  "execution_steps": [],
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "given の HTML を返す get_text と2つの応答を返す get_json を渡して list_weekly_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致し、get_text に渡された URL が \"https://github.com/trending?since=weekly\" で、get_json に https://api.github.com/search/repositories で始まる URL が渡されない",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストが通り、既存テスト（list_contributor_x_accounts を含む）もすべて通り、python3 -m mypy . が 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に list_weekly_trending_x_accounts が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
   "assumptions": [
-    "GitHub に公式の trending API はないため、trending は GitHub Search API（https://api.github.com/search/repositories の items[].full_name）の応答で代用する。",
+    "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
     "x アカウントは GET /users/{login} の twitter_username フィールドから取る。",
     "一覧は Markdown の箇条書きで、1行の形式は「- @<x_handle> (<github_login>, <owner/repo>) https://x.com/<x_handle>」とする。",
-    "Cycle 1 は trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。"
+    "Cycle 1 は trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
+    "trending ページの各リポジトリは <article class=\"Box-row\"> 内の <h2> の <a href=\"/<owner>/<repo>\"> で表され、その href から先頭の / を除いたものを owner/repo とする。",
+    "trending ページの HTML 取得は JSON 取得とは別の関数 get_text(url) -> str として注入する。",
+    "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。"
   ],
   "wont": [
     {
@@ -64,6 +87,14 @@
     }
   ],
   "next_sprint_backlog": [
+    {
+      "item": "今週の GitHub trending ページ（https://github.com/trending?since=weekly）の先頭リポジトリからトップコントリビューターの x アカウント行を作る",
+      "source": "本当の github trending（今週）から取りたい"
+    },
+    {
+      "item": "list_weekly_trending_x_accounts で twitter_username が無い（None または空文字）のコントリビューターを飛ばし、x アカウントを持つ次のコントリビューターの行を出す",
+      "source": "x アカウントが無い人は一覧に要らない"
+    },
     {
       "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
       "source": "まとめて一覧で見たい"
