@@ -83,5 +83,26 @@ def write_weekly_ai_trending_x_accounts(
     get_text: Callable[[str], str],
     get_json: Callable[[str], Any],
 ) -> None:
+    text = collect_weekly_ai_trending_x_accounts(get_text, get_json)
     with open(path, "w", encoding="utf-8") as f:
-        f.write("")
+        f.write(text)
+
+
+def _http_get_text(url: str) -> str:
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"User-Agent": "leanshift-trend-bot"})
+    with urllib.request.urlopen(req) as res:
+        return str(res.read().decode("utf-8"))
+
+
+def _http_get_json(url: str) -> Any:
+    import json
+
+    return json.loads(_http_get_text(url))
+
+
+if __name__ == "__main__":
+    import sys
+
+    write_weekly_ai_trending_x_accounts(sys.argv[1], _http_get_text, _http_get_json)

@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "write_weekly_ai_trending_x_accounts_markdown",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -74,39 +74,30 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — same Markdown list as collect_weekly_trending_x_accounts, limited to weekly trending repos whose GET /repos/{owner}/{repo} topics include \"ai\" or \"llm\"; calls get_json once per repo for topics, then contributors and users for matching repos"
         }
+      },
+      {
+        "name": "write_weekly_ai_trending_x_accounts_markdown",
+        "source": "実際に動かして一覧を Markdown ファイルで見たい",
+        "file": "core/github_contributors.py",
+        "symbol": "write_weekly_ai_trending_x_accounts",
+        "interface": {
+          "input": "path: str, get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "None — writes collect_weekly_ai_trending_x_accounts(get_text, get_json) to path as UTF-8 (overwrites); CLI entry `python3 -m core.github_contributors <path>` uses unauthenticated urllib"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "AI 系の今週の trending から集めた x アカウント一覧を、実際に動かして Markdown ファイルに書き出せるようにする",
-    "source": "実際に動かして一覧を Markdown ファイルで見たい",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "get_text が '<article class=\"Box-row\"><h2><a href=\"/acme/agent\">acme/agent</a></h2></article>' を返し、get_json が https://api.github.com/repos/acme/agent に {\"topics\": [\"ai\"]}、https://api.github.com/repos/acme/agent/contributors に [{\"login\": \"alice\"}]、https://api.github.com/users/alice に {\"twitter_username\": \"alice_ai\"} を返す。書き出し先は tmp_path / \"x_accounts.md\"（まだ存在しない）",
-      "when": "write_weekly_ai_trending_x_accounts(path, get_text, get_json) を呼ぶ",
-      "then": "path のファイルが作られ、その内容（UTF-8）がちょうど \"- @alice_ai (alice, acme/agent) https://x.com/alice_ai\\n\" である"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "core/github_contributors.py に write_weekly_ai_trending_x_accounts(path: str, get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> None を追加し、collect_weekly_ai_trending_x_accounts の結果をそのまま path に書く。get_text / get_json は引数で注入し、テストでは HTTP だけを差し替える。人が実際に動かす入口は `python3 -m core.github_contributors <出力パス>`（例: outputs/x_accounts.md）で、標準ライブラリの HTTP 取得を get_text / get_json として渡す。入口はテスト対象外で人間が確認する。GITHUB_TOKEN による認証は次の増分で get_json 側に足す"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "acme/agent（topics [\"ai\"]）・alice・alice_ai を返す get_text / get_json と未作成の tmp_path / \"x_accounts.md\" を渡して write_weekly_ai_trending_x_accounts を呼ぶと、そのファイルの内容が \"- @alice_ai (alice, acme/agent) https://x.com/alice_ai\\n\" になる",
-      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストと既存の全テストが python3 -m pytest -v で通り、python3 -m mypy . がエラー 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に write_weekly_ai_trending_x_accounts_markdown が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -142,10 +133,6 @@
     }
   ],
   "next_sprint_backlog": [
-    {
-      "item": "AI 系の今週の trending から集めた x アカウント一覧を Markdown ファイルに書き出し、実際に動かせる入口を用意する",
-      "source": "実際に動かして一覧を Markdown ファイルで見たい"
-    },
     {
       "item": "環境変数 GITHUB_TOKEN があるとき、GitHub API への JSON 取得リクエストに Authorization: Bearer <token> ヘッダーを付ける",
       "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい"
