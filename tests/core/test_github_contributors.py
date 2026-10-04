@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 from core.github_contributors import (
@@ -5,6 +6,7 @@ from core.github_contributors import (
     collect_weekly_trending_x_accounts,
     list_contributor_x_accounts,
     list_weekly_trending_x_accounts,
+    write_weekly_ai_trending_x_accounts,
 )
 
 
@@ -159,3 +161,27 @@ def test_collect_weekly_ai_trending_x_accounts_keeps_only_ai_topics() -> None:
     result = collect_weekly_ai_trending_x_accounts(get_text, get_json)
 
     assert result == "- @alice_ai (alice, acme/llm) https://x.com/alice_ai\n"
+
+
+def test_write_weekly_ai_trending_x_accounts_writes_file(tmp_path: Path) -> None:
+    html = (
+        '<article class="Box-row"><h2><a href="/acme/agent">acme/agent</a></h2></article>'
+    )
+
+    def get_text(url: str) -> str:
+        return html
+
+    def get_json(url: str) -> Any:
+        responses: dict[str, Any] = {
+            "https://api.github.com/repos/acme/agent": {"topics": ["ai"]},
+            "https://api.github.com/repos/acme/agent/contributors": [{"login": "alice"}],
+            "https://api.github.com/users/alice": {"twitter_username": "alice_ai"},
+        }
+        return responses[url]
+
+    path = tmp_path / "x_accounts.md"
+    write_weekly_ai_trending_x_accounts(str(path), get_text, get_json)
+
+    assert path.read_text(encoding="utf-8") == (
+        "- @alice_ai (alice, acme/agent) https://x.com/alice_ai\n"
+    )
