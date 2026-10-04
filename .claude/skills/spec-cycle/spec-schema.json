@@ -1,55 +1,357 @@
 {
-  "cycle_type": "cycle_1_tracer | cycle_n_expansion",
-  "status": "ready_for_implementation | completed",
-  "feature_name": "機能名",
-  "runtime": {
-    "language": "Cycle 1 で決めた最小の言語・実行環境（例: node 24 + TypeScript / python 3.13）",
-    "test_command": "全テストを実行するコマンド（例: npm test / python -m pytest）",
-    "format_command": "整形コマンド（不要なら空文字）",
-    "test_file_convention": "テストの配置規約（例: src/foo.ts -> src/foo.test.ts）"
-  },
-  "current_baseline": {
-    "completed_feature": "現在動いている機能の事実（初回は \"None\"）",
-    "test_status": "all_green | initial",
-    "interface": {
-      "input": "確定済みの入力データ型",
-      "output": "確定済みの出力データ型"
-    }
-  },
-  "target_increment": {
-    "focus": "今回追加するたった1つのこと（Why / What）",
-    "acceptance_criteria": {
-      "given": "前提条件",
-      "when": "入力・実行トリガー",
-      "then": "期待される結果・振る舞い（assert 可能な値・型・状態）"
-    },
-    "extension_point": "将来の拡張を受け止めるインターフェース定義"
-  },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "Tracer Bullet（I/F定義 & 契約テスト Red）",
-      "assertion": "最小入力に対して期待する型/値が返ること（Red確認）",
-      "scope": "runtime.test_file_convention に従うテストファイル および インターフェース定義"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）",
-      "assertion": "全テストがパスすること（Green確認）",
-      "scope": "最小プレーンコード"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新",
-      "assertion": "既存テスト全件Greenのまま spec.json が更新されること",
-      "scope": "spec.json"
-    }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec.json",
+  "description": "/spec-cycle の唯一の真実。check_spec.py がこのスキーマ（type / enum / required / properties / additionalProperties / items / minLength のみ使用）、状態別ルール、ペインへの根拠づけ、features のコード実在、および --against で前回の spec.json からの不変条件を検証する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cycle_type",
+    "status",
+    "feature_name",
+    "pains",
+    "runtime",
+    "current_baseline",
+    "target_increment",
+    "execution_steps",
+    "assumptions",
+    "wont",
+    "next_sprint_backlog",
+    "dropped_backlog",
+    "proposals"
   ],
-  "wont": [
-    "今回も将来も作らない過剰設計・UI・不要な抽象化"
-  ],
-  "next_sprint_backlog": [
-    "次期サイクルで足すべき最小要件1",
-    "次期サイクルで足すべき最小要件2"
-  ]
+  "properties": {
+    "cycle_type": {
+      "type": "string",
+      "enum": [
+        "cycle_1_tracer",
+        "cycle_n_expansion"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ready_for_implementation",
+        "completed"
+      ]
+    },
+    "feature_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "機能名"
+    },
+    "pains": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "/spec-cycle に渡された現場ペインの原文（一字一句そのまま）。追記のみで、既存の項目は変更・削除しない。作るものはすべてここから引用できなければならない"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "dependencies",
+        "setup_command",
+        "test_command",
+        "format_command",
+        "test_file_convention",
+        "harness_files"
+      ],
+      "properties": {
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Cycle 1 で決めた最小の言語・実行環境（例: node 24 + TypeScript / python 3.13）。以降変更しない"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "許可された外部依存。各項目は「パッケージ名 — 追加したサイクルと理由」。標準ライブラリだけなら空配列"
+        },
+        "setup_command": {
+          "type": "string",
+          "description": "lockfile どおりに依存を再現し、追跡中のファイルを書き換えないコマンド（例: npm ci）。依存がなければ空文字。guard-bash.py が止めるコマンドは書けない（check_spec.py が検証する）"
+        },
+        "test_command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "全テストを実行し、個々のテスト名と結果を1件ずつ出力するコマンド（例: python3 -m unittest -v / npx vitest run --reporter=verbose）。以降変更しない。guard-bash.py が止めるコマンドは書けない（check_spec.py が検証する）"
+        },
+        "format_command": {
+          "type": "string",
+          "description": "整形コマンド（不要なら空文字）。guard-bash.py が止めるコマンドは書けない（check_spec.py が検証する）"
+        },
+        "test_file_convention": {
+          "type": "string",
+          "minLength": 1,
+          "description": "テストの配置規約（例: src/foo.ts -> src/foo.test.ts）。以降変更しない"
+        },
+        "harness_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "テストの実行方法を決めるファイル（マニフェスト、lockfile、テストランナー設定、conftest 等）。Red でコミットした後は Green で変更できない"
+        }
+      }
+    },
+    "current_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_status",
+        "features"
+      ],
+      "properties": {
+        "test_status": {
+          "type": "string",
+          "enum": [
+            "all_green",
+            "initial"
+          ]
+        },
+        "features": {
+          "type": "array",
+          "description": "完了した機能。サイクルごとに1件追記し、既存の項目は変更・削除しない。Cycle 1 開始時は空配列",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "source",
+              "file",
+              "symbol",
+              "interface"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "この機能の根拠となった pains の一節（完了したサイクルの target_increment.source）。一度使った一節と重なる引用は、以降の増分や backlog に使えない"
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "description": "実装のファイルパス（リポジトリルートからの相対パス。check_spec.py が実在を確認する）"
+              },
+              "symbol": {
+                "type": "string",
+                "minLength": 1,
+                "description": "関数名・クラス名（check_spec.py が file 内に存在することを確認する）"
+              },
+              "interface": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "input",
+                  "output"
+                ],
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "確定済みの入力データ型"
+                  },
+                  "output": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "確定済みの出力データ型"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "target_increment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus",
+        "source",
+        "acceptance_criteria",
+        "extension_point"
+      ],
+      "description": "status が ready_for_implementation のとき focus / source / given / when / then は必須。completed のときはすべて空文字",
+      "properties": {
+        "focus": {
+          "type": "string",
+          "description": "今回追加するたった1つのこと（Why / What）"
+        },
+        "source": {
+          "type": "string",
+          "description": "focus の根拠となる pains の一節（原文の部分文字列をそのまま引用）。完了済みの機能の source や、昇格させた項目以外の backlog の source と重なってはならない"
+        },
+        "acceptance_criteria": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "given",
+            "when",
+            "then"
+          ],
+          "properties": {
+            "given": {
+              "type": "string",
+              "description": "前提条件と具体的な入力値"
+            },
+            "when": {
+              "type": "string",
+              "description": "実行トリガー"
+            },
+            "then": {
+              "type": "string",
+              "description": "assert する具体的な値・型・状態・例外（「正しく動く」は不可）"
+            }
+          }
+        },
+        "extension_point": {
+          "type": "string",
+          "description": "将来の拡張を受け止めるインターフェース定義"
+        }
+      }
+    },
+    "execution_steps": {
+      "type": "array",
+      "description": "ready_for_implementation のときは3段固定: 1. 契約テスト（Red）— builder / 2. コアロジック実装（Green）— builder / 3. 完了記録とベースライン更新 — オーケストレーター。completed のときは空配列（前サイクルの手順を残さない）",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step",
+          "name",
+          "assertion",
+          "scope"
+        ],
+        "properties": {
+          "step": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assertion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "テストが観測すること（入力と期待値）だけを書く。実装方法は書かない"
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "description": "触ってよいファイルのパスをカンマ区切りで列挙する（説明文や実装方法は書かない）"
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "ペインに書かれておらず Phase A が仮定で埋めた事実（1項目1文）"
+    },
+    "wont": {
+      "type": "array",
+      "description": "今回も将来も作らない過剰設計・UI・不要な抽象化。新しいペインが keyword を含むときだけ外せる",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item",
+          "keyword"
+        ],
+        "properties": {
+          "item": {
+            "type": "string",
+            "minLength": 1,
+            "description": "作らないものの説明"
+          },
+          "keyword": {
+            "type": "string",
+            "minLength": 1,
+            "description": "人がペインに書きそうな短い語（例: GUI、pandas）。ペインがこの語を含めば解除できる"
+          }
+        }
+      }
+    },
+    "next_sprint_backlog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item",
+          "source"
+        ],
+        "properties": {
+          "item": {
+            "type": "string",
+            "minLength": 1,
+            "description": "1スプリントで終わる粒度の1文"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "description": "根拠となる pains の一節（原文の部分文字列をそのまま引用）。完了済みの機能や他の backlog 項目の source と重なってはならない"
+          }
+        }
+      },
+      "description": "優先度順。ペインに根拠のある項目だけを入れる（根拠のない思いつきは完了レポートで提案するだけにする）"
+    },
+    "dropped_backlog": {
+      "type": "array",
+      "description": "昇格させずに backlog から外した項目。追記のみ",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item",
+          "source",
+          "reason",
+          "evidence"
+        ],
+        "properties": {
+          "item": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "外した理由（例: 今の実装ですでに満たされている）"
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "理由を確かめた実行コマンドとその出力"
+          }
+        }
+      }
+    },
+    "proposals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "planner が思いついたが、ペインに根拠がないため作らない案。記録するだけで、採用するには人間が新しいペインとして渡す"
+    }
+  }
 }

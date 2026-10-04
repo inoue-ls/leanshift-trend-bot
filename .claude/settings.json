@@ -13,7 +13,13 @@
       "Bash(git commit *)",
       "Bash(git clean -fd*)",
       "Bash(python3 -m pytest *)",
-      "Bash(python3 -m mypy *)"
+      "Bash(python3 -m mypy *)",
+      "Bash(git branch -D vibe/temp-feature)",
+      "Bash(git tag vibe/failed/*)",
+      "Bash(python3 -m unittest *)",
+      "Bash(python3 .claude/skills/spec-cycle/check_spec.py *)",
+      "Bash(python3 .claude/skills/spec-cycle/brief.py *)",
+      "Bash(python3 .claude/skills/spec-cycle/gate.py *)"
     ],
     "deny": [
       "Read(.env)",
