@@ -7,6 +7,12 @@ TRENDING_URL = (
 API = "https://api.github.com"
 
 
+def list_weekly_trending_x_accounts(
+    get_text: Callable[[str], str], get_json: Callable[[str], Any]
+) -> str:
+    return ""
+
+
 def list_contributor_x_accounts(
     get_json: Callable[[str], Any], trending_url: str = TRENDING_URL
 ) -> str:
