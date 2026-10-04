@@ -196,3 +196,36 @@ def test_github_api_request_adds_bearer_token() -> None:
 
     assert request.full_url == "https://api.github.com/users/alice"
     assert request.get_header("Authorization") == "Bearer ghp_test"
+
+
+def test_collect_weekly_ai_trending_x_accounts_real_page_shape() -> None:
+    html = (
+        '<article class="Box-row">\n'
+        '<div class="float-right d-flex"><a href="/login?return_to=%2Facme%2Fllm" '
+        'rel="nofollow" class="btn-sm btn">Star</a></div>\n'
+        '<h2 class="h3 lh-condensed">\n'
+        '<a data-hydro-click="{&quot;event_type&quot;:&quot;explore.click&quot;}" '
+        'data-hydro-click-hmac="abc123" href="/acme/llm" '
+        'data-view-component="true" class="Link">\n'
+        '<span class="text-normal">acme /</span> llm\n'
+        "</a>\n"
+        "</h2>\n"
+        "</article>"
+    )
+
+    def get_text(url: str) -> str:
+        return html
+
+    def get_json(url: str) -> Any:
+        responses: dict[str, Any] = {
+            "https://api.github.com/repos/acme/llm": {"topics": ["llm"]},
+            "https://api.github.com/repos/acme/llm/contributors": [
+                {"login": "alice"}
+            ],
+            "https://api.github.com/users/alice": {"twitter_username": "alice_x"},
+        }
+        return responses[url]
+
+    result = collect_weekly_ai_trending_x_accounts(get_text, get_json)
+
+    assert result == "- @alice_x (alice, acme/llm) https://x.com/alice_x\n"
