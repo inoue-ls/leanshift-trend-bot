@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "completed",
-  "feature_name": "write_weekly_ai_trending_x_accounts_markdown",
+  "status": "ready_for_implementation",
+  "feature_name": "github_token_authorization_header",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない",
@@ -88,16 +88,35 @@
     ]
   },
   "target_increment": {
-    "focus": "",
-    "source": "",
+    "focus": "環境変数 GITHUB_TOKEN があるとき、GitHub API への JSON 取得リクエストに Authorization: Bearer <token> ヘッダーを付ける",
+    "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい",
     "acceptance_criteria": {
-      "given": "",
-      "when": "",
-      "then": ""
+      "given": "environ が {\"GITHUB_TOKEN\": \"ghp_test\"}、url が \"https://api.github.com/users/alice\"",
+      "when": "github_api_request(url, environ) を呼ぶ",
+      "then": "返った urllib.request.Request の full_url が \"https://api.github.com/users/alice\" で、get_header(\"Authorization\") が \"Bearer ghp_test\" である"
     },
-    "extension_point": ""
+    "extension_point": "core/github_contributors.py に github_api_request(url: str, environ: Mapping[str, str]) -> urllib.request.Request を追加する。環境変数は引数 environ で注入し、テストでは os.environ を使わず辞書を渡す（ネットワークには出ない）。CLI 入口の _http_get_json は os.environ を渡してこのリクエストを開く。入口は人間が確認する"
   },
-  "execution_steps": [],
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "url \"https://api.github.com/users/alice\" と environ {\"GITHUB_TOKEN\": \"ghp_test\"} を渡して github_api_request を呼ぶと、返った Request の full_url が \"https://api.github.com/users/alice\"、get_header(\"Authorization\") が \"Bearer ghp_test\" になる",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストと既存の全テストが python3 -m pytest -v で通り、python3 -m mypy . がエラー 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に github_token_authorization_header が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -120,7 +139,9 @@
     "Markdown ファイルに書く一覧は collect_weekly_ai_trending_x_accounts（AI 系に絞った今週の trending）の結果とし、見出しなどは足さずそのまま書く。",
     "書き出し先のパスは引数で受け取り、既にファイルがあれば上書きする。",
     "実際に動かす入口は python3 -m core.github_contributors <出力パス> とし、出力先は gitignore 済みの outputs/ 配下を想定する。",
-    "GITHUB_TOKEN は環境変数から読み、GitHub API へのリクエストに Authorization: Bearer <token> ヘッダーとして付ける（次の増分）。"
+    "GITHUB_TOKEN は環境変数から読み、GitHub API へのリクエストに Authorization: Bearer <token> ヘッダーとして付ける（次の増分）。",
+    "GitHub API へのリクエストは新しい関数 github_api_request(url, environ) で組み立て、環境変数は引数 environ（os.environ と同じ形の辞書）で受け取る。",
+    "GITHUB_TOKEN が無い、または空のときは Authorization ヘッダーを付けない（次の増分以降でテストする）。"
   ],
   "wont": [
     {
@@ -148,6 +169,7 @@
     "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする",
     "AI 系とみなす topics（現在は ai / llm と仮定）を machine-learning / deep-learning / agents などに広げる、または引数で変えられるようにする",
     "Markdown ファイルに日付入りの見出しを付ける、またはファイル名を outputs/YYYY-MM-DD_x_accounts.md にする",
-    "GITHUB_TOKEN が無いときに警告を出す、またはレート制限（403/429）時に分かるエラーで止める"
+    "GITHUB_TOKEN が無いときに警告を出す、またはレート制限（403/429）時に分かるエラーで止める",
+    "GITHUB_TOKEN が無いときに Authorization ヘッダーを付けないことをテストする"
   ]
 }
