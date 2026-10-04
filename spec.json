@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "aggregate_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -53,39 +53,30 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — one Markdown line for the first contributor (in contributors order) of the first weekly trending repo whose twitter_username is non-empty; contributors with None or \"\" are skipped; \"\" if none has one"
         }
+      },
+      {
+        "name": "aggregate_weekly_trending_x_accounts",
+        "source": "まとめて一覧で見たい",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — Markdown list, one line per unique x handle, from the first 3 contributors of every repo on https://github.com/trending?since=weekly (trending order, then contributors order); contributors without twitter_username are skipped; calls get_json once per repo and once per contributor"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "今週の trending ページの全リポジトリの上位3人のコントリビューターの x アカウントを1つの Markdown 一覧にまとめ、同じ x アカウントは最初に出た1行だけにする",
-    "source": "まとめて一覧で見たい",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "get_text が '<article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/acme/llm\">x</a></h2></article><article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/beta/agent\">y</a></h2></article>' を返し、get_json が https://api.github.com/repos/acme/llm/contributors に [{\"login\": \"alice\"}, {\"login\": \"bob\"}]、https://api.github.com/repos/beta/agent/contributors に [{\"login\": \"alice\"}, {\"login\": \"dave\"}, {\"login\": \"erin\"}, {\"login\": \"frank\"}]、https://api.github.com/users/alice に {\"twitter_username\": \"alice_ai\"}、users/bob に {\"twitter_username\": \"bob_ml\"}、users/dave に {\"twitter_username\": null}、users/erin に {\"twitter_username\": \"erin_dev\"}、users/frank に {\"twitter_username\": \"frank_x\"} を返す",
-      "when": "collect_weekly_trending_x_accounts(get_text, get_json) を呼ぶ",
-      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n- @bob_ml (bob, acme/llm) https://x.com/bob_ml\\n- @erin_dev (erin, beta/agent) https://x.com/erin_dev\\n\" と完全一致する（alice_ai は1行だけ、dave と frank は含まない）"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "core/github_contributors.py に collect_weekly_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str を追加する。既存の list_weekly_trending_x_accounts / list_contributor_x_accounts のシグネチャと戻り値は変えない。HTTP は引き続き get_text / get_json の注入で差し替える"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "acme/llm（alice, bob）と beta/agent（alice, dave, erin, frank）の2リポジトリを含む HTML を返す get_text と、twitter_username が alice_ai / bob_ml / null / erin_dev / frank_x を返す get_json を渡して collect_weekly_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n- @bob_ml (bob, acme/llm) https://x.com/bob_ml\\n- @erin_dev (erin, beta/agent) https://x.com/erin_dev\\n\" と一致する",
-      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストが通り、list_weekly_trending_x_accounts と list_contributor_x_accounts の既存テストもすべて通り、python3 -m mypy . が 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に aggregate_weekly_trending_x_accounts が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -114,10 +105,6 @@
     }
   ],
   "next_sprint_backlog": [
-    {
-      "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
-      "source": "まとめて一覧で見たい"
-    },
     {
       "item": "trending の対象を AI 系のリポジトリ（例: topic:ai / topic:llm）に絞り込む",
       "source": "AI 系の"
