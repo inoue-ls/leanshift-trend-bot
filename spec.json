@@ -1,0 +1,91 @@
+{
+  "cycle_type": "cycle_1_tracer",
+  "status": "ready_for_implementation",
+  "feature_name": "github_trending_x_accounts",
+  "pains": [
+    "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい"
+  ],
+  "runtime": {
+    "language": "python 3.10 + Pydantic (existing stack)",
+    "dependencies": [
+      "pytest — Cycle 1, test runner already used by the existing tests (constitution 2)",
+      "mypy — Cycle 1, static type check required by constitution 1"
+    ],
+    "setup_command": "",
+    "test_command": "python3 -m pytest -v",
+    "format_command": "",
+    "test_file_convention": "core/foo.py -> tests/core/test_foo.py (tests/ mirrors the source tree)",
+    "harness_files": [
+      "requirements.txt",
+      "mypy.ini"
+    ]
+  },
+  "current_baseline": {
+    "test_status": "initial",
+    "features": []
+  },
+  "target_increment": {
+    "focus": "trending リポジトリ1件のトップコントリビューター1人の GitHub プロフィールから x アカウントを取り出し、Markdown 一覧の1行として返す（入力から一覧まで細く1本通す）",
+    "source": "github trending に集まっているトップコントリビューターの x アカウントを",
+    "acceptance_criteria": {
+      "given": "get_json(url) を差し替えた関数で、trending の応答が {\"items\": [{\"full_name\": \"acme/llm\"}]}、https://api.github.com/repos/acme/llm/contributors の応答が [{\"login\": \"alice\"}]、https://api.github.com/users/alice の応答が {\"login\": \"alice\", \"twitter_username\": \"alice_ai\"}",
+      "when": "core/github_contributors.py の list_contributor_x_accounts(get_json) を呼ぶ",
+      "then": "戻り値が文字列 \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と完全一致する"
+    },
+    "extension_point": "list_contributor_x_accounts(get_json: Callable[[str], Any]) -> str。HTTP は get_json に注入し、テストでは固定の dict/list を返す関数に差し替える。trending の取得 URL は既定値として持ち、後のサイクルで AI 系の絞り込み・複数リポジトリ・複数コントリビューターに広げる"
+  },
+  "execution_steps": [
+    {
+      "step": 1,
+      "name": "契約テスト（Red）— builder",
+      "assertion": "given の3つの応答を返す get_json を渡して list_contributor_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する",
+      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
+    },
+    {
+      "step": 2,
+      "name": "コアロジック実装（Green）— builder",
+      "assertion": "Step 1 のテストが通り、既存テストもすべて通り、python3 -m mypy . が 0 件",
+      "scope": "core/github_contributors.py"
+    },
+    {
+      "step": 3,
+      "name": "完了記録とベースライン更新 — オーケストレーター",
+      "assertion": "current_baseline.features に list_contributor_x_accounts が追記され、test_status が all_green",
+      "scope": "spec.json"
+    }
+  ],
+  "assumptions": [
+    "GitHub に公式の trending API はないため、trending は GitHub Search API（https://api.github.com/search/repositories の items[].full_name）の応答で代用する。",
+    "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
+    "x アカウントは GET /users/{login} の twitter_username フィールドから取る。",
+    "一覧は Markdown の箇条書きで、1行の形式は「- @<x_handle> (<github_login>, <owner/repo>) https://x.com/<x_handle>」とする。",
+    "Cycle 1 は trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。"
+  ],
+  "wont": [
+    {
+      "item": "X (Twitter) API を使ったフォロワー数取得や自動フォロー",
+      "keyword": "フォロー"
+    },
+    {
+      "item": "一覧をブラウザで見るための Web 画面",
+      "keyword": "画面"
+    }
+  ],
+  "next_sprint_backlog": [
+    {
+      "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
+      "source": "まとめて一覧で見たい"
+    },
+    {
+      "item": "trending の対象を AI 系のリポジトリ（例: topic:ai / topic:llm）に絞り込む",
+      "source": "AI 系の"
+    }
+  ],
+  "dropped_backlog": [],
+  "proposals": [
+    "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
+    "GitHub API のレート制限・エラー時のリトライや GITHUB_TOKEN による認証",
+    "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
+    "日次バッチ（run_daily.sh / LangGraph）への組み込み"
+  ]
+}
