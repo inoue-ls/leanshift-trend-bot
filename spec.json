@@ -1,11 +1,12 @@
 {
   "cycle_type": "cycle_n_expansion",
   "status": "completed",
-  "feature_name": "github_token_authorization_header",
+  "feature_name": "parse_real_trending_repo_links",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない",
-    "実際に動かして一覧を Markdown ファイルで見たい。GITHUB_TOKEN を使ってレート制限に当たらないようにしたい"
+    "実際に動かして一覧を Markdown ファイルで見たい。GITHUB_TOKEN を使ってレート制限に当たらないようにしたい",
+    "本物の github trending ページでは <a> の href の前に data-hydro-click などの属性があり、リポジトリが1件も取れない。実際のページの形でも取れるようにしたい"
   ],
   "runtime": {
     "language": "python 3.10 + Pydantic (existing stack)",
@@ -94,6 +95,16 @@
           "input": "url: str, environ: Mapping[str, str]",
           "output": "urllib.request.Request for url with User-Agent, plus 'Authorization: Bearer <GITHUB_TOKEN>' when environ has a non-empty GITHUB_TOKEN; the CLI's JSON fetch opens it with os.environ"
         }
+      },
+      {
+        "name": "parse_real_trending_repo_links",
+        "source": "<a> の href の前に data-hydro-click などの属性があり",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_ai_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — same AI-filtered Markdown list; repo links are now found in the <h2> <a> even when attributes such as data-hydro-click come before href and the tag spans newlines (real trending page shape)"
+        }
       }
     ]
   },
@@ -132,7 +143,9 @@
     "実際に動かす入口は python3 -m core.github_contributors <出力パス> とし、出力先は gitignore 済みの outputs/ 配下を想定する。",
     "GITHUB_TOKEN は環境変数から読み、GitHub API へのリクエストに Authorization: Bearer <token> ヘッダーとして付ける（次の増分）。",
     "GitHub API へのリクエストは新しい関数 github_api_request(url, environ) で組み立て、環境変数は引数 environ（os.environ と同じ形の辞書）で受け取る。",
-    "GITHUB_TOKEN が無い、または空のときは Authorization ヘッダーを付けない（次の増分以降でテストする）。"
+    "GITHUB_TOKEN が無い、または空のときは Authorization ヘッダーを付けない（次の増分以降でテストする）。",
+    "実際の trending ページでは各 <article class=\"Box-row\"> の <h2> より前に Star ボタンの <a href=\"/login?return_to=...\"> があり、リポジトリのリンクは <h2> 内の <a> の href 属性（属性の順序は問わない、タグ内に改行を含みうる）とする。",
+    "今回の対応は CLI が使う collect_weekly_ai_trending_x_accounts で確かめる（他の trending 関数の対応はテストしない）。"
   ],
   "wont": [
     {
@@ -156,6 +169,8 @@
     "AI 系とみなす topics（現在は ai / llm と仮定）を machine-learning / deep-learning / agents などに広げる、または引数で変えられるようにする",
     "Markdown ファイルに日付入りの見出しを付ける、またはファイル名を outputs/YYYY-MM-DD_x_accounts.md にする",
     "GITHUB_TOKEN が無いときに警告を出す、またはレート制限（403/429）時に分かるエラーで止める",
-    "GITHUB_TOKEN が無いときに Authorization ヘッダーを付けないことをテストする"
+    "GITHUB_TOKEN が無いときに Authorization ヘッダーを付けないことをテストする",
+    "list_weekly_trending_x_accounts と collect_weekly_trending_x_accounts も実際の trending ページの形（href の前に属性がある <a>）に対応していることをテストする",
+    "保存した実際の trending ページの HTML をテストのフィクスチャとして使う"
   ]
 }
