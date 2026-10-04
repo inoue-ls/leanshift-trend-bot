@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
   "status": "completed",
-  "feature_name": "aggregate_weekly_trending_x_accounts",
+  "feature_name": "filter_ai_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -63,6 +63,16 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — Markdown list, one line per unique x handle, from the first 3 contributors of every repo on https://github.com/trending?since=weekly (trending order, then contributors order); contributors without twitter_username are skipped; calls get_json once per repo and once per contributor"
         }
+      },
+      {
+        "name": "filter_ai_weekly_trending_x_accounts",
+        "source": "AI 系の",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_ai_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — same Markdown list as collect_weekly_trending_x_accounts, limited to weekly trending repos whose GET /repos/{owner}/{repo} topics include \"ai\" or \"llm\"; calls get_json once per repo for topics, then contributors and users for matching repos"
+        }
       }
     ]
   },
@@ -92,7 +102,10 @@
     "「トップコントリビューター」は各リポジトリの contributors の先頭3人（x アカウントの有無に関係なく順位で数える）とし、そのうち x アカウントを持つ人だけを出す。",
     "同じ x アカウントが複数のリポジトリに現れたときは、最初に出たリポジトリの1行だけを残す。",
     "行の並びはリポジトリの trending 順、その中は contributors の順とする。",
-    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。"
+    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。",
+    "「AI 系」のリポジトリは、GET /repos/{owner}/{repo} の topics に \"ai\" または \"llm\" を含むものとする。",
+    "絞り込み以外（先頭3人、x アカウントの無い人の除外、重複除去、並び順、行の形式）は collect_weekly_trending_x_accounts と同じとする。",
+    "絞り込んだ一覧は既存関数を変えずに新しい関数 collect_weekly_ai_trending_x_accounts として追加する。"
   ],
   "wont": [
     {
@@ -104,12 +117,7 @@
       "keyword": "画面"
     }
   ],
-  "next_sprint_backlog": [
-    {
-      "item": "trending の対象を AI 系のリポジトリ（例: topic:ai / topic:llm）に絞り込む",
-      "source": "AI 系の"
-    }
-  ],
+  "next_sprint_backlog": [],
   "dropped_backlog": [],
   "proposals": [
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
@@ -117,6 +125,7 @@
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
     "日次バッチ（run_daily.sh / LangGraph）への組み込み",
     "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする",
-    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする"
+    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする",
+    "AI 系とみなす topics（現在は ai / llm と仮定）を machine-learning / deep-learning / agents などに広げる、または引数で変えられるようにする"
   ]
 }

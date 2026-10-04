@@ -1,6 +1,7 @@
 from typing import Any
 
 from core.github_contributors import (
+    collect_weekly_ai_trending_x_accounts,
     collect_weekly_trending_x_accounts,
     list_contributor_x_accounts,
     list_weekly_trending_x_accounts,
@@ -127,3 +128,34 @@ def test_collect_weekly_trending_x_accounts_dedupes_across_repos() -> None:
         "- @bob_ml (bob, acme/llm) https://x.com/bob_ml\n"
         "- @erin_dev (erin, beta/agent) https://x.com/erin_dev\n"
     )
+
+
+def test_collect_weekly_ai_trending_x_accounts_keeps_only_ai_topics() -> None:
+    html = (
+        '<article class="Box-row"><h2 class="h3">'
+        '<a href="/acme/llm">x</a></h2></article>'
+        '<article class="Box-row"><h2 class="h3">'
+        '<a href="/beta/web">y</a></h2></article>'
+    )
+
+    def get_text(url: str) -> str:
+        return html
+
+    def get_json(url: str) -> Any:
+        responses: dict[str, Any] = {
+            "https://api.github.com/repos/acme/llm": {"topics": ["llm"]},
+            "https://api.github.com/repos/beta/web": {"topics": ["css"]},
+            "https://api.github.com/repos/acme/llm/contributors": [
+                {"login": "alice"}
+            ],
+            "https://api.github.com/repos/beta/web/contributors": [
+                {"login": "carol"}
+            ],
+            "https://api.github.com/users/alice": {"twitter_username": "alice_ai"},
+            "https://api.github.com/users/carol": {"twitter_username": "carol_css"},
+        }
+        return responses[url]
+
+    result = collect_weekly_ai_trending_x_accounts(get_text, get_json)
+
+    assert result == "- @alice_ai (alice, acme/llm) https://x.com/alice_ai\n"

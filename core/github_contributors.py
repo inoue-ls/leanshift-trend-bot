@@ -54,3 +54,25 @@ def collect_weekly_trending_x_accounts(
                 seen.add(handle)
                 out += f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
     return out
+
+
+def collect_weekly_ai_trending_x_accounts(
+    get_text: Callable[[str], str], get_json: Callable[[str], Any]
+) -> str:
+    html = get_text(WEEKLY_TRENDING_URL)
+    repos = re.findall(
+        r'<article class="Box-row">.*?<h2[^>]*>\s*<a href="/([^"]+)"', html, re.S
+    )
+    seen: set[str] = set()
+    out = ""
+    for repo in repos:
+        topics = get_json(f"{API}/repos/{repo}").get("topics") or []
+        if "ai" not in topics and "llm" not in topics:
+            continue
+        for contributor in get_json(f"{API}/repos/{repo}/contributors")[:3]:
+            login = contributor["login"]
+            handle = get_json(f"{API}/users/{login}")["twitter_username"]
+            if handle and handle not in seen:
+                seen.add(handle)
+                out += f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+    return out
