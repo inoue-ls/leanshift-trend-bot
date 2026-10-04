@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "github_token_authorization_header",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -84,39 +84,30 @@
           "input": "path: str, get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "None — writes collect_weekly_ai_trending_x_accounts(get_text, get_json) to path as UTF-8 (overwrites); CLI entry `python3 -m core.github_contributors <path>` uses unauthenticated urllib"
         }
+      },
+      {
+        "name": "github_token_authorization_header",
+        "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい",
+        "file": "core/github_contributors.py",
+        "symbol": "github_api_request",
+        "interface": {
+          "input": "url: str, environ: Mapping[str, str]",
+          "output": "urllib.request.Request for url with User-Agent, plus 'Authorization: Bearer <GITHUB_TOKEN>' when environ has a non-empty GITHUB_TOKEN; the CLI's JSON fetch opens it with os.environ"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "環境変数 GITHUB_TOKEN があるとき、GitHub API への JSON 取得リクエストに Authorization: Bearer <token> ヘッダーを付ける",
-    "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "environ が {\"GITHUB_TOKEN\": \"ghp_test\"}、url が \"https://api.github.com/users/alice\"",
-      "when": "github_api_request(url, environ) を呼ぶ",
-      "then": "返った urllib.request.Request の full_url が \"https://api.github.com/users/alice\" で、get_header(\"Authorization\") が \"Bearer ghp_test\" である"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "core/github_contributors.py に github_api_request(url: str, environ: Mapping[str, str]) -> urllib.request.Request を追加する。環境変数は引数 environ で注入し、テストでは os.environ を使わず辞書を渡す（ネットワークには出ない）。CLI 入口の _http_get_json は os.environ を渡してこのリクエストを開く。入口は人間が確認する"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "url \"https://api.github.com/users/alice\" と environ {\"GITHUB_TOKEN\": \"ghp_test\"} を渡して github_api_request を呼ぶと、返った Request の full_url が \"https://api.github.com/users/alice\"、get_header(\"Authorization\") が \"Bearer ghp_test\" になる",
-      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストと既存の全テストが python3 -m pytest -v で通り、python3 -m mypy . がエラー 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に github_token_authorization_header が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -153,12 +144,7 @@
       "keyword": "画面"
     }
   ],
-  "next_sprint_backlog": [
-    {
-      "item": "環境変数 GITHUB_TOKEN があるとき、GitHub API への JSON 取得リクエストに Authorization: Bearer <token> ヘッダーを付ける",
-      "source": "GITHUB_TOKEN を使ってレート制限に当たらないようにしたい"
-    }
-  ],
+  "next_sprint_backlog": [],
   "dropped_backlog": [],
   "proposals": [
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
