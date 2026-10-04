@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "filter_ai_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -63,39 +63,30 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — Markdown list, one line per unique x handle, from the first 3 contributors of every repo on https://github.com/trending?since=weekly (trending order, then contributors order); contributors without twitter_username are skipped; calls get_json once per repo and once per contributor"
         }
+      },
+      {
+        "name": "filter_ai_weekly_trending_x_accounts",
+        "source": "AI 系の",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_ai_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — same Markdown list as collect_weekly_trending_x_accounts, limited to weekly trending repos whose GET /repos/{owner}/{repo} topics include \"ai\" or \"llm\"; calls get_json once per repo for topics, then contributors and users for matching repos"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "今週の trending の一覧を、topics に ai または llm を含むリポジトリだけに絞る",
-    "source": "AI 系の",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "get_text が acme/llm と beta/web の2リポジトリを含む今週の trending HTML を返し、get_json が GET /repos/acme/llm に {\"topics\": [\"llm\"]}、GET /repos/beta/web に {\"topics\": [\"css\"]}、各 contributors に [alice] / [carol]、users に alice→alice_ai、carol→carol_css の twitter_username を返す",
-      "when": "collect_weekly_ai_trending_x_accounts(get_text, get_json) を呼ぶ",
-      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する（beta/web の carol_css は含まれない）"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "core/github_contributors.py に collect_weekly_ai_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str を追加する。HTTP は get_text / get_json の引数で注入し、テストではそれだけを差し替える。既存の collect_weekly_trending_x_accounts は変えない。"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "acme/llm と beta/web を含む HTML を返す get_text と、GET /repos/acme/llm → {\"topics\": [\"llm\"]}、GET /repos/beta/web → {\"topics\": [\"css\"]}、contributors → [alice] / [carol]、twitter_username → alice_ai / carol_css を返す get_json を渡して collect_weekly_ai_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する",
-      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストが通り、collect_weekly_trending_x_accounts / list_weekly_trending_x_accounts / list_contributor_x_accounts の既存テストもすべて通り、python3 -m mypy . が 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に filter_ai_weekly_trending_x_accounts が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -126,12 +117,7 @@
       "keyword": "画面"
     }
   ],
-  "next_sprint_backlog": [
-    {
-      "item": "trending の対象を AI 系のリポジトリ（例: topic:ai / topic:llm）に絞り込む",
-      "source": "AI 系の"
-    }
-  ],
+  "next_sprint_backlog": [],
   "dropped_backlog": [],
   "proposals": [
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",
