@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "parse_real_trending_repo_links",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -95,39 +95,30 @@
           "input": "url: str, environ: Mapping[str, str]",
           "output": "urllib.request.Request for url with User-Agent, plus 'Authorization: Bearer <GITHUB_TOKEN>' when environ has a non-empty GITHUB_TOKEN; the CLI's JSON fetch opens it with os.environ"
         }
+      },
+      {
+        "name": "parse_real_trending_repo_links",
+        "source": "<a> の href の前に data-hydro-click などの属性があり",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_ai_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — same AI-filtered Markdown list; repo links are now found in the <h2> <a> even when attributes such as data-hydro-click come before href and the tag spans newlines (real trending page shape)"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "<h2> 内の <a> で href の前に data-hydro-click などの属性があり、href の後にも属性や改行が続く実際の trending ページの形でも、リポジトリ owner/repo を取り出して一覧にする",
-    "source": "<a> の href の前に data-hydro-click などの属性があり",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "get_text が実際の trending ページと同じ形の HTML <article class=\"Box-row\">\\n<div class=\"float-right d-flex\"><a href=\"/login?return_to=%2Facme%2Fllm\" rel=\"nofollow\" class=\"btn-sm btn\">Star</a></div>\\n<h2 class=\"h3 lh-condensed\">\\n<a data-hydro-click=\"{&quot;event_type&quot;:&quot;explore.click&quot;}\" data-hydro-click-hmac=\"abc123\" href=\"/acme/llm\" data-view-component=\"true\" class=\"Link\">\\n<span class=\"text-normal\">acme /</span> llm\\n</a>\\n</h2>\\n</article> を返し、get_json が https://api.github.com/repos/acme/llm に {\"topics\": [\"llm\"]}、https://api.github.com/repos/acme/llm/contributors に [{\"login\": \"alice\"}]、https://api.github.com/users/alice に {\"twitter_username\": \"alice_x\"} を返す（\\n は改行）",
-      "when": "collect_weekly_ai_trending_x_accounts(get_text, get_json) を呼ぶ",
-      "then": "戻り値が \"- @alice_x (alice, acme/llm) https://x.com/alice_x\\n\" である（現在は \"\"）"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "既存のシグネチャ collect_weekly_ai_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str を変えない。HTML 取得は get_text、API は get_json で注入し、テストはネットワークに出ない。既存テストの属性なしの <a href=\"/owner/repo\"> の形も引き続き取れる"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "given の HTML（Star ボタンの <a href=\"/login?...\"> が <h2> より前にあり、<h2> 内の <a> は data-hydro-click と data-hydro-click-hmac が href より前にある）と get_json の応答を渡して collect_weekly_ai_trending_x_accounts を呼ぶと \"- @alice_x (alice, acme/llm) https://x.com/alice_x\\n\" が返る",
-      "scope": "tests/core/test_github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストと既存の全テストが python3 -m pytest -v で通り、python3 -m mypy . がエラー 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に parse_real_trending_repo_links が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -166,12 +157,7 @@
       "keyword": "画面"
     }
   ],
-  "next_sprint_backlog": [
-    {
-      "item": "<h2> 内の <a> で href の前に data-hydro-click などの属性があり、href の後にも属性や改行が続く実際の trending ページの形でも、リポジトリ owner/repo を取り出して一覧にする",
-      "source": "<a> の href の前に data-hydro-click などの属性があり"
-    }
-  ],
+  "next_sprint_backlog": [],
   "dropped_backlog": [],
   "proposals": [
     "twitter_username が空のコントリビューターを一覧から除外する（またはその旨を表示する）",

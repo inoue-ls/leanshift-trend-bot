@@ -16,7 +16,7 @@ def list_weekly_trending_x_accounts(
 ) -> str:
     html = get_text(WEEKLY_TRENDING_URL)
     match = re.search(
-        r'<article class="Box-row">.*?<h2[^>]*>\s*<a href="/([^"]+)"', html, re.S
+        r'<article class="Box-row">.*?<h2[^>]*>\s*<a\s[^>]*?href="/([^"]+)"', html, re.S
     )
     if match is None:
         return ""
@@ -43,7 +43,7 @@ def collect_weekly_trending_x_accounts(
 ) -> str:
     html = get_text(WEEKLY_TRENDING_URL)
     repos = re.findall(
-        r'<article class="Box-row">.*?<h2[^>]*>\s*<a href="/([^"]+)"', html, re.S
+        r'<article class="Box-row">.*?<h2[^>]*>\s*<a\s[^>]*?href="/([^"]+)"', html, re.S
     )
     seen: set[str] = set()
     out = ""
@@ -62,7 +62,7 @@ def collect_weekly_ai_trending_x_accounts(
 ) -> str:
     html = get_text(WEEKLY_TRENDING_URL)
     repos = re.findall(
-        r'<article class="Box-row">.*?<h2[^>]*>\s*<a href="/([^"]+)"', html, re.S
+        r'<article class="Box-row">.*?<h2[^>]*>\s*<a\s[^>]*?href="/([^"]+)"', html, re.S
     )
     seen: set[str] = set()
     out = ""
