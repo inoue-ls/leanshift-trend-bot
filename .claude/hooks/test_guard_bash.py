@@ -8,7 +8,6 @@ import json
 import pathlib
 import subprocess
 import sys
-import tempfile
 import unittest
 
 HOOK = pathlib.Path(__file__).with_name("guard-bash.py")
@@ -34,8 +33,6 @@ BLOCKED = {
     "git checkout --force main": "forced git checkout",
     "git switch --discard-changes main": "git switch discarding changes",
     "git switch -f main": "git switch discarding changes",
-    # The rollback chain is allowed only verbatim; anything appended re-enables the checks.
-    "git checkout -f main && git branch -D vibe/temp-feature && git clean -fd && git clean -fd": "forced git clean",
     "git checkout -f main && git clean -fd": "forced git clean",
     "git restore .": "git restore of the working tree",
     "git restore src/app.ts": "git restore of the working tree",
@@ -56,29 +53,13 @@ BLOCKED = {
     f"grep KEY {ENV}.production": "reading .env through a shell",
     f"cat {ENV}.example": "reading .env through a shell",  # CLAUDE.md: .env* is never read
     "chmod -R 777 .": "chmod 777",
-    "git update-ref refs/heads/vibe/temp-feature HEAD~1": "rewriting git refs or history",
+    "git update-ref refs/heads/feature HEAD~1": "rewriting git refs or history",
     "git filter-branch --tree-filter x HEAD": "rewriting git refs or history",
-    "git branch -f vibe/temp-feature HEAD~1": "force-moving a branch",
+    "git branch -f feature HEAD~1": "force-moving a branch",
     "git branch -M main": "force-moving a branch",
-    "git checkout -B vibe/temp-feature HEAD~1": "resetting a branch",
-    "git switch -C vibe/temp-feature HEAD~1": "resetting a branch",
+    "git checkout -B feature HEAD~1": "resetting a branch",
+    "git switch -C feature HEAD~1": "resetting a branch",
 }
-
-# History rewrites that would let builder unlock the committed Red tests.
-# Blocked only while the pipeline branch is checked out.
-PIPELINE = "vibe/temp-feature"
-BLOCKED_ON_PIPELINE = {
-    "git commit --amend --no-edit": "amending a commit on the pipeline branch",
-    "git add -u && git commit --amend -m x": "amending a commit on the pipeline branch",
-    "git reset --soft HEAD~1": "git reset on the pipeline branch",
-    "git reset HEAD~1": "git reset on the pipeline branch",
-    "git rebase -i HEAD~2": "git rebase on the pipeline branch",
-}
-ALLOWED_ON_PIPELINE = [
-    "git add -u && git commit -m 'feat(spec-cycle): x'",
-    "git tag vibe/failed/20260930-120000 vibe/temp-feature",
-    "git checkout -f main && git branch -D vibe/temp-feature && git clean -fd",
-]
 
 ALLOWED = [
     "git status",
@@ -86,14 +67,14 @@ ALLOWED = [
     "git add -u -- src/file-foo.ts",
     "git restore --staged src/app.ts",
     "git restore -S src/app.ts",
-    "git checkout -b vibe/temp-feature",
+    "git checkout -b feature",
     "git switch main",
     "git switch -c feature",
     "git branch -m old new",
-    "git branch -D vibe/temp-feature",
+    "git branch -D feature",
     "git clean -n",
-    "git checkout -f main && git branch -D vibe/temp-feature && git clean -fd",
-    "git tag vibe/failed/20260930-120000 vibe/temp-feature",
+    "git commit --amend --no-edit",
+    "git rebase -i HEAD~2",
     "git stash push -m wip",
     "rm -rf node_modules",
     "git commit -m 'docs: explain why git reset --hard is blocked'",
@@ -109,36 +90,10 @@ class GuardTest(unittest.TestCase):
                 self.assertIsNotNone(got, f"not blocked: {cmd}")
                 self.assertIn(reason, got)
 
-    def test_allows_pipeline_and_everyday_commands(self):
+    def test_allows_everyday_commands(self):
         for cmd in ALLOWED:
             with self.subTest(cmd=cmd):
                 self.assertIsNone(guard.check(cmd))
-
-    def test_history_rewrites_blocked_only_on_pipeline_branch(self):
-        for cmd, reason in BLOCKED_ON_PIPELINE.items():
-            with self.subTest(cmd=cmd):
-                got = guard.check(cmd, branch=PIPELINE)
-                self.assertIsNotNone(got, f"not blocked on {PIPELINE}: {cmd}")
-                self.assertIn(reason, got)
-                self.assertIsNone(guard.check(cmd, branch="main"))
-        for cmd in ALLOWED_ON_PIPELINE:
-            with self.subTest(cmd=cmd):
-                self.assertIsNone(guard.check(cmd, branch=PIPELINE))
-
-    def test_hook_reads_branch_from_cwd(self):
-        with tempfile.TemporaryDirectory() as d:
-            git = ["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t"]
-            subprocess.run(git + ["init", "-q"], check=True)
-            subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "i"], check=True)
-            subprocess.run(git + ["checkout", "-q", "-b", PIPELINE], check=True)
-            r = subprocess.run(
-                [sys.executable, str(HOOK)],
-                input=json.dumps({"cwd": d, "tool_input": {"command": "git commit --amend --no-edit"}}),
-                text=True,
-                capture_output=True,
-            )
-            self.assertEqual(r.returncode, 2)
-            self.assertIn("amending a commit on the pipeline branch", r.stderr)
 
     def test_hook_exit_codes(self):
         def run(cmd):

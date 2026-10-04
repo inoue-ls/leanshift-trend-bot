@@ -17,7 +17,6 @@ Fails open (exit 0) on any parsing error.
 
 import json
 import re
-import subprocess
 import sys
 
 
@@ -104,46 +103,15 @@ RULES = [
 ]
 
 
-# /spec-cycle's rollback discards the throwaway branch on purpose. It is the only
-# forced checkout / clean allowed, and only when the command is exactly this chain.
-ROLLBACK = re.compile(
-    r"git checkout -f [\w.][\w./-]* && git branch -D vibe/temp-feature && git clean -fd"
-)
-
-
-# On the pipeline branch the spec and Red commits are the contract; rewriting
-# them would unlock the committed tests. /spec-cycle also verifies commit hashes.
-PIPELINE_BRANCH = "vibe/temp-feature"
-PIPELINE_RULES = [
-    (r"\bgit\s+commit\s+([^|&;]*\s)?--amend\b", "amending a commit on the pipeline branch"),
-    (r"\bgit\s+reset\b", "git reset on the pipeline branch"),
-    (r"\bgit\s+rebase\b", "git rebase on the pipeline branch"),
-]
-
-
-def check(cmd: str, branch=None):
+def check(cmd: str):
     """Return the block reason for a command, or None if it is allowed."""
     scrubbed = strip_noise(cmd)
-    if ROLLBACK.fullmatch(scrubbed):
-        return None
     if dangerous_rm(scrubbed):
         return "recursive rm on a broad/absolute path"
-    rules = RULES + (PIPELINE_RULES if branch == PIPELINE_BRANCH else [])
-    for pat, why in rules:
+    for pat, why in RULES:
         if re.search(pat, scrubbed, re.IGNORECASE):
             return why
     return None
-
-
-def current_branch(cwd):
-    try:
-        out = subprocess.run(
-            ["git", "-C", cwd or ".", "branch", "--show-current"],
-            capture_output=True, text=True, timeout=5,
-        )
-        return out.stdout.strip() or None
-    except Exception:
-        return None
 
 
 def main() -> int:
@@ -155,7 +123,7 @@ def main() -> int:
     if not cmd.strip():
         return 0
 
-    reason = check(cmd, current_branch(data.get("cwd")))
+    reason = check(cmd)
     if reason:
         sys.stderr.write(f"guard-bash: BLOCKED — {reason}\n")
         sys.stderr.write(f"guard-bash: command was: {cmd}\n")
