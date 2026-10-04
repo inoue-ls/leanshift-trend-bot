@@ -76,3 +76,12 @@ def collect_weekly_ai_trending_x_accounts(
                 seen.add(handle)
                 out += f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
     return out
+
+
+def write_weekly_ai_trending_x_accounts(
+    path: str,
+    get_text: Callable[[str], str],
+    get_json: Callable[[str], Any],
+) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("")
