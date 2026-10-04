@@ -1,6 +1,6 @@
 {
   "cycle_type": "cycle_n_expansion",
-  "status": "ready_for_implementation",
+  "status": "completed",
   "feature_name": "skip_contributors_without_x_account",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
@@ -43,39 +43,30 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — one Markdown line '- @<handle> (<login>, <owner/repo>) https://x.com/<handle>\\n' for the first repo on https://github.com/trending?since=weekly and its first contributor; calls get_text for the trending page and get_json for the contributors and user URLs"
         }
+      },
+      {
+        "name": "skip_contributors_without_x_account",
+        "source": "x アカウントが無い人は一覧に要らない",
+        "file": "core/github_contributors.py",
+        "symbol": "list_weekly_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — one Markdown line for the first contributor (in contributors order) of the first weekly trending repo whose twitter_username is non-empty; contributors with None or \"\" are skipped; \"\" if none has one"
+        }
       }
     ]
   },
   "target_increment": {
-    "focus": "list_weekly_trending_x_accounts が twitter_username の無いコントリビューターを飛ばし、x アカウントを持つ次のコントリビューターの行を返す",
-    "source": "x アカウントが無い人は一覧に要らない",
+    "focus": "",
+    "source": "",
     "acceptance_criteria": {
-      "given": "get_text が '<article class=\"Box-row\"><h2 class=\"h3\"><a href=\"/acme/llm\">x</a></h2></article>' を返し、get_json が https://api.github.com/repos/acme/llm/contributors に [{\"login\": \"bob\"}, {\"login\": \"carol\"}, {\"login\": \"alice\"}]、https://api.github.com/users/bob に {\"twitter_username\": null}、https://api.github.com/users/carol に {\"twitter_username\": \"\"}、https://api.github.com/users/alice に {\"twitter_username\": \"alice_ai\"} を返す",
-      "when": "list_weekly_trending_x_accounts(get_text, get_json) を呼ぶ",
-      "then": "戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と完全一致し、\"None\" も \"bob\" も \"carol\" も含まない"
+      "given": "",
+      "when": "",
+      "then": ""
     },
-    "extension_point": "list_weekly_trending_x_accounts(get_text: Callable[[str], str], get_json: Callable[[str], Any]) -> str のシグネチャは変えない。HTTP は引き続き get_text / get_json の注入で差し替える"
+    "extension_point": ""
   },
-  "execution_steps": [
-    {
-      "step": 1,
-      "name": "契約テスト（Red）— builder",
-      "assertion": "given の HTML を返す get_text と、contributors に bob / carol / alice、users に twitter_username が null / \"\" / \"alice_ai\" を返す get_json を渡して list_weekly_trending_x_accounts を呼ぶと、戻り値が \"- @alice_ai (alice, acme/llm) https://x.com/alice_ai\\n\" と一致する",
-      "scope": "tests/core/test_github_contributors.py, core/github_contributors.py"
-    },
-    {
-      "step": 2,
-      "name": "コアロジック実装（Green）— builder",
-      "assertion": "Step 1 のテストが通り、既存テスト（先頭コントリビューターが x アカウントを持つ場合の list_weekly_trending_x_accounts と list_contributor_x_accounts を含む）もすべて通り、python3 -m mypy . が 0 件",
-      "scope": "core/github_contributors.py"
-    },
-    {
-      "step": 3,
-      "name": "完了記録とベースライン更新 — オーケストレーター",
-      "assertion": "current_baseline.features に skip_contributors_without_x_account が追記され、test_status が all_green",
-      "scope": "spec.json"
-    }
-  ],
+  "execution_steps": [],
   "assumptions": [
     "GitHub に公式の trending API はないため、今週の trending は https://github.com/trending?since=weekly の HTML から取る（Cycle 1 の Search API による代用はスター数順だったため置き換える）。",
     "トップコントリビューターは GET /repos/{owner}/{repo}/contributors の先頭（コミット数順）とする。",
@@ -99,10 +90,6 @@
     }
   ],
   "next_sprint_backlog": [
-    {
-      "item": "list_weekly_trending_x_accounts で twitter_username が無い（None または空文字）のコントリビューターを飛ばし、x アカウントを持つ次のコントリビューターの行を出す",
-      "source": "x アカウントが無い人は一覧に要らない"
-    },
     {
       "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
       "source": "まとめて一覧で見たい"
