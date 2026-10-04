@@ -1,7 +1,7 @@
 {
   "cycle_type": "cycle_n_expansion",
   "status": "completed",
-  "feature_name": "skip_contributors_without_x_account",
+  "feature_name": "aggregate_weekly_trending_x_accounts",
   "pains": [
     "x のネタ元のアカウントを自分で探すと時間がかかるので、AI 系の github trending に集まっているトップコントリビューターの x アカウントをまとめて一覧で見たい",
     "スター数順ではなく本当の github trending（今週）から取りたい。x アカウントが無い人は一覧に要らない"
@@ -53,6 +53,16 @@
           "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
           "output": "str — one Markdown line for the first contributor (in contributors order) of the first weekly trending repo whose twitter_username is non-empty; contributors with None or \"\" are skipped; \"\" if none has one"
         }
+      },
+      {
+        "name": "aggregate_weekly_trending_x_accounts",
+        "source": "まとめて一覧で見たい",
+        "file": "core/github_contributors.py",
+        "symbol": "collect_weekly_trending_x_accounts",
+        "interface": {
+          "input": "get_text: Callable[[str], str], get_json: Callable[[str], Any]",
+          "output": "str — Markdown list, one line per unique x handle, from the first 3 contributors of every repo on https://github.com/trending?since=weekly (trending order, then contributors order); contributors without twitter_username are skipped; calls get_json once per repo and once per contributor"
+        }
       }
     ]
   },
@@ -77,7 +87,12 @@
     "trending ページの HTML 取得は JSON 取得とは別の関数 get_text(url) -> str として注入する。",
     "今回も trending 先頭のリポジトリ1件・その先頭のコントリビューター1人だけを扱う。",
     "twitter_username が None または空文字のコントリビューターは「x アカウントが無い人」とみなし、contributors の順に次の人を見る。",
-    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。"
+    "今回も trending 先頭のリポジトリ1件だけを扱い、出す行は x アカウントを持つ最初のコントリビューター1人分だけとする。",
+    "一覧の対象は今週の trending ページに載っているすべてのリポジトリ（<article class=\"Box-row\"> の出現順）とする。",
+    "「トップコントリビューター」は各リポジトリの contributors の先頭3人（x アカウントの有無に関係なく順位で数える）とし、そのうち x アカウントを持つ人だけを出す。",
+    "同じ x アカウントが複数のリポジトリに現れたときは、最初に出たリポジトリの1行だけを残す。",
+    "行の並びはリポジトリの trending 順、その中は contributors の順とする。",
+    "まとめた一覧は既存関数を変えずに新しい関数 collect_weekly_trending_x_accounts として追加する。"
   ],
   "wont": [
     {
@@ -91,10 +106,6 @@
   ],
   "next_sprint_backlog": [
     {
-      "item": "複数のリポジトリ・複数のトップコントリビューターの x アカウントを1つの一覧にまとめ、同じアカウントは1行にする",
-      "source": "まとめて一覧で見たい"
-    },
-    {
       "item": "trending の対象を AI 系のリポジトリ（例: topic:ai / topic:llm）に絞り込む",
       "source": "AI 系の"
     }
@@ -105,6 +116,7 @@
     "GitHub API のレート制限・エラー時のリトライや GITHUB_TOKEN による認証",
     "一覧を outputs/ に Markdown ファイルとして書き出す CLI エントリポイント",
     "日次バッチ（run_daily.sh / LangGraph）への組み込み",
-    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする"
+    "どのコントリビューターも x アカウントを持たない場合の戻り値（空文字など）を決めてテストする",
+    "上位何人までを対象にするか（現在は3人と仮定）を引数で変えられるようにする"
   ]
 }

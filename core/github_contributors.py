@@ -35,3 +35,22 @@ def list_contributor_x_accounts(
     login = get_json(f"{API}/repos/{repo}/contributors")[0]["login"]
     handle = get_json(f"{API}/users/{login}")["twitter_username"]
     return f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+
+
+def collect_weekly_trending_x_accounts(
+    get_text: Callable[[str], str], get_json: Callable[[str], Any]
+) -> str:
+    html = get_text(WEEKLY_TRENDING_URL)
+    repos = re.findall(
+        r'<article class="Box-row">.*?<h2[^>]*>\s*<a href="/([^"]+)"', html, re.S
+    )
+    seen: set[str] = set()
+    out = ""
+    for repo in repos:
+        for contributor in get_json(f"{API}/repos/{repo}/contributors")[:3]:
+            login = contributor["login"]
+            handle = get_json(f"{API}/users/{login}")["twitter_username"]
+            if handle and handle not in seen:
+                seen.add(handle)
+                out += f"- @{handle} ({login}, {repo}) https://x.com/{handle}\n"
+    return out
