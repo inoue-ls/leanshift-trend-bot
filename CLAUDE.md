@@ -41,6 +41,7 @@ python3 -m pytest
 
 ## How to build
 - Build only what the request states. List ideas the request does not state as proposals in your reply; don't build them.
+- When given an article or someone else's design without a concrete request (e.g. "I want to adopt this"), don't build from it. Separate what it says is the problem, the solution or architecture it proposes, and its facts or numbers (note whether the source is official); ask which of my problems it should apply to, and suggest `/requirements` if the request needs sorting out.
 - Build the whole request in one go, end to end. Don't leave a stated part for later unless the request says so.
 - Write a failing test first and show it failing on an assertion, then write the minimal code that passes it. Tests live next to the source.
 - Every test asserts real output, state, or a specific error. Never mock the unit under test; pass external I/O (HTTP, DB, clock, randomness) in as an argument so tests can replace only that.
