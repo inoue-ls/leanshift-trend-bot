@@ -6,6 +6,7 @@ checkpoints.sqlite*
 logs/
 outputs/
 runs/
+STATE.md
 .langgraph_api/
 
 # Personal profile (KPIs) — public repo なので追跡しない
