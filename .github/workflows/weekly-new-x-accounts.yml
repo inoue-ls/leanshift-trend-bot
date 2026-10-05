@@ -1,0 +1,70 @@
+# docs/requirements.md の 5: 毎週の新しい人の一覧を Discord に通知する。
+# 記録（login ごとの初出の週）は artifact で前回の成功した実行から受け渡す。
+# リポジトリへのコミットや Issue は作らない。
+name: Weekly new X accounts
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # 毎週月曜 00:00 UTC = 日本時間 9:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+# 手動実行と定期実行が重なっても、記録を同時に更新しないよう順番に実行する
+concurrency:
+  group: weekly-new-x-accounts
+  cancel-in-progress: false
+
+env:
+  HISTORY_ARTIFACT: x-accounts-history
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Download history from the last successful run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p state
+          run_id=$(gh api "repos/$REPO/actions/workflows/weekly-new-x-accounts.yml/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].id // empty')
+          if [ -z "$run_id" ]; then
+            echo "前回の成功した実行がないので、記録なしで始めます"
+            exit 0
+          fi
+          artifact_id=$(gh api "repos/$REPO/actions/runs/$run_id/artifacts" \
+            --jq ".artifacts[] | select(.name == \"$HISTORY_ARTIFACT\" and (.expired | not)) | .id")
+          if [ -z "$artifact_id" ]; then
+            echo "実行 $run_id に記録の artifact がない（期限切れ）ので、記録なしで始めます"
+            exit 0
+          fi
+          gh run download "$run_id" --repo "$REPO" --name "$HISTORY_ARTIFACT" --dir state
+          echo "実行 $run_id の記録を使います"
+
+      - name: Build this week's list
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 -m core.weekly_new_x_accounts x_accounts.md state/history.json
+
+      - name: Notify Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python3 -m core.discord_notify x_accounts.md
+
+      # 通知が成功したときだけ記録を残す（失敗した週の人は次回また新しい人として出る）
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.HISTORY_ARTIFACT }}
+          path: state/history.json
+          if-no-files-found: error
+          retention-days: 90
