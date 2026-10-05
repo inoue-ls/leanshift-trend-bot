@@ -49,6 +49,7 @@ python3 -m pytest
 - Don't change the behavior or signature of existing functions unless the request asks for it; add a new one instead.
 - Build a screen only when the request asks for one: one screen, one action, no styling, plus the command to open it.
 - Report the assumptions you made for facts the request did not give.
+- When a request builds an item from `docs/requirements.md`, update that file in the same commit: mark the item done, note what you learned, and point its "次の頼み方" at the next item.
 
 ## Git and secrets
 - When a request is done, commit it. Stage with `git add -u` plus explicit paths for new files; `git add .` / `-A` / `--all` are blocked by `.claude/hooks/guard-bash.py`.
