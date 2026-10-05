@@ -4,13 +4,24 @@
 # ログは logs/YYYY-MM-DD.log に追記される
 set -euo pipefail
 
+# .bashrc から & で起動すると、ターミナルを閉じたときに SIGHUP で python ごと止まる。
+# 無視する設定は子プロセス（python3 main.py）にも引き継がれる。
+trap '' HUP
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 LOG_FILE="$PROJECT_ROOT/logs/$(date +%Y-%m-%d).log"
 
 mkdir -p "$PROJECT_ROOT/logs"
 
-# 冪等ガード: 当日分の outputs がすでに存在する場合はスキップ（cron + 起動時実行の二重防止）
+# 二重起動ガード: cron と .bashrc が同時に起動しても、実行中なら後から来た方は何もしない
+exec 9> "$PROJECT_ROOT/logs/.run_daily.lock"
+if ! flock -n 9; then
+  echo "[SKIP] 実行中のため起動しない: $(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
+  exit 0
+fi
+
+# 冪等ガード: 当日分の outputs がすでに存在する場合はスキップ
 TODAY=$(date +%Y-%m-%d)
 OUTPUT="$PROJECT_ROOT/outputs/${TODAY}_trends.md"
 if [ -f "$OUTPUT" ]; then
