@@ -246,7 +246,7 @@ python3 -m pytest -v
 
 ## 📂 設計ドキュメント (docs/)
 
-*   [requirements.md](docs/requirements.md) — 機能を足す前の要件整理。大きい・ぼんやりした要件は、頼む前に `/requirements`（`~/.claude/skills/requirements`）でコードを見ずに整理し、ここに残してからコードと突き合わせる
+*   [requirements.md](docs/requirements.md) — 機能を足す前の要件整理。大きい・ぼんやりした要件は、頼む前に `/requirements`（`.claude/skills/requirements`）でコードを見ずに整理し、ここに残してからコードと突き合わせる
 *   [ARCHITECTURE.md](docs/ARCHITECTURE.md) — 移行前（線形パイプライン時代）のアーキテクチャ概要。現行のLangGraph構成は下記の設計書を参照
 *   [superpowers/specs/2026-08-14-langgraph-migration-design.md](docs/superpowers/specs/2026-08-14-langgraph-migration-design.md) — LangGraph移行設計書（core/orchestration分離、グラフフロー、State設計）
 *   [superpowers/plans/2026-08-14-langgraph-migration.md](docs/superpowers/plans/2026-08-14-langgraph-migration.md) — LangGraph移行の実装計画（18タスク、TDD）
