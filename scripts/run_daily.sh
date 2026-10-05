@@ -42,7 +42,18 @@ fi
     set +a
   fi
 
-  python3 main.py
+  status=0
+  python3 main.py || status=$?
 
-  echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] 完了 ==="
+  if [ "$status" -eq 0 ]; then
+    echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] 完了 ==="
+  else
+    echo "=== [$(date '+%Y-%m-%d %H:%M:%S')] 失敗 (exit $status) ==="
+  fi
+
+  # 日次トリアージ（L1: 報告のみ）。結果の行をログに書いたあとに走らせ、失敗した日も走らせる。
+  # トリアージ自体が失敗しても、日次実行の結果（exit code）は変えない
+  python3 -m core.daily_triage || echo "[警告] 日次トリアージに失敗しました"
+
+  exit "$status"
 } >> "$LOG_FILE" 2>&1

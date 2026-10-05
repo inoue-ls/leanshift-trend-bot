@@ -61,3 +61,39 @@ def test_second_start_while_running_is_skipped(project: pathlib.Path) -> None:
     assert (project / "runs.txt").read_text() == "run\n"
     log = (project / "logs" / f"{date.today().isoformat()}.log").read_text()
     assert "[SKIP] 実行中" in log
+
+
+# core.daily_triage の代わり: 起動された時点のログを残す
+FAKE_TRIAGE = """
+import pathlib
+from datetime import date
+log = pathlib.Path("logs", f"{date.today().isoformat()}.log").read_text()
+pathlib.Path("triage.txt").write_text(log)
+"""
+
+
+def _with_fake_triage(project: pathlib.Path) -> None:
+    (project / "core").mkdir()
+    (project / "core" / "__init__.py").write_text("")
+    (project / "core" / "daily_triage.py").write_text(FAKE_TRIAGE)
+
+
+def test_triage_runs_after_the_result_is_logged(project: pathlib.Path) -> None:
+    _with_fake_triage(project)
+
+    proc = start(project)
+    proc.wait(timeout=10)
+
+    assert proc.returncode == 0
+    assert "完了" in (project / "triage.txt").read_text()
+
+
+def test_triage_runs_even_when_main_fails_and_exit_code_is_kept(project: pathlib.Path) -> None:
+    _with_fake_triage(project)
+    (project / "main.py").write_text("import sys\nsys.exit(3)\n")
+
+    proc = start(project)
+    proc.wait(timeout=10)
+
+    assert proc.returncode == 3
+    assert "失敗 (exit 3)" in (project / "triage.txt").read_text()
