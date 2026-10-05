@@ -37,7 +37,6 @@ python3 -m pytest
 ## Stack
 - Python 3.10 + Pydantic. Run tests with `python3 -m pytest -v` and type-check with `python3 -m mypy .` (0 errors, constitution ①) before you report.
 - Tests live under `tests/`, mirroring the source tree (this overrides "next to the source" below).
-- `spec.json` is the record of the retired `/spec-cycle` pipeline (past pains, assumptions, features). Read it for background; don't update it.
 
 ## How to build
 - Build only what the request states. List ideas the request does not state as proposals in your reply; don't build them.
