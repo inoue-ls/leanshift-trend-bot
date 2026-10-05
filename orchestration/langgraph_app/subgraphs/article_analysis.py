@@ -4,6 +4,7 @@ from orchestration.langgraph_app.state import ArticleState
 from core.analysis.generate import generate_draft
 from core.analysis.evaluate import evaluate_draft
 from core.analysis.client import build_client
+from core.run_records import build_article_record
 
 logger = logging.getLogger(__name__)
 
@@ -60,3 +61,23 @@ def analyze_article_node(state: ArticleState) -> dict:
         logger.exception("記事の分析に失敗しました: %s", state["article"].url)
         return {"scored": []}
     return {"scored": [result["draft"]]}
+
+
+def analyze_article_recorded_node(state: ArticleState) -> dict:
+    """analyze_article_node と同じ処理に加え、評価1回ごとのフィードバック・合否・例外を
+    親グラフのrecordsキーへ返す。サブグラフの途中経過はstreamで受け取る。"""
+    evaluations: list[str | None] = []
+    draft = None
+    error: Exception | None = None
+    try:
+        for update in _SUBGRAPH.stream(state, stream_mode="updates"):
+            if "generate" in update:
+                draft = update["generate"]["draft"]
+            if "evaluate" in update:
+                evaluations.append(update["evaluate"]["feedback"])
+    except Exception as e:
+        logger.exception("記事の分析に失敗しました: %s", state["article"].url)
+        error = e
+    record = build_article_record(state["article"], evaluations, error)
+    scored = [] if error is not None or draft is None else [draft]
+    return {"scored": scored, "records": [record]}
